@@ -45,10 +45,10 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sair',
-            onPressed: () {
-              auth.logout();
-              context.go(AppRoutes.login);
-            },
+            onPressed: () async {
+  await auth.logout();
+  context.go(AppRoutes.login);
+},
           ),
         ],
       ),

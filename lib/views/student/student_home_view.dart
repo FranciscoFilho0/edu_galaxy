@@ -76,10 +76,10 @@ class _StudentHomeViewState extends State<StudentHomeView> {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.logout, color: Color(0xFF89B4FA)),
-                                onPressed: () {
-                                  auth.logout();
-                                  context.go(AppRoutes.login);
-                                },
+                               onPressed: () async {
+  await auth.logout();
+  context.go(AppRoutes.login);
+},
                               ),
                             ],
                           ),

@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1061560776845",
+    "project_id": "edu-galaxy-2f1b4",
+    "storage_bucket": "edu-galaxy-2f1b4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1061560776845:android:f2a8d48f5480e82dae8ac4",
+        "android_client_info": {
+          "package_name": "com.example.edu_galaxy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1061560776845-4d3q63fmijr0fign7mnans4ekn8hcfe5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjHNi5yNio9KzdvkL6vTEJIIF5kapb_Gw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1061560776845-4d3q63fmijr0fign7mnans4ekn8hcfe5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/professor_controller.dart';
 import 'controllers/student_controller.dart';
@@ -7,7 +9,9 @@ import 'controllers/game_content_controller.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(
     MultiProvider(
       providers: [
@@ -29,7 +33,6 @@ class EduGalaxyApp extends StatelessWidget {
     final auth = context.watch<AuthController>();
     final router = createRouter();
 
-    // Use professor theme when logged as professor, student/galactic otherwise
     final theme = auth.isProfessor
         ? AppTheme.professorTheme()
         : AppTheme.studentTheme();
