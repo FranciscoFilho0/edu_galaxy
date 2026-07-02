@@ -115,7 +115,6 @@ class _ProfessorSection extends StatefulWidget {
 }
 
 class _ProfessorSectionState extends State<_ProfessorSection> {
-  // 0 = login, 1 = cadastro
   int _mode = 0;
 
   final _nameCtrl = TextEditingController();

@@ -23,7 +23,7 @@ class AuthController extends ChangeNotifier {
   // ── Login com e-mail e senha ─────────────────────────────────────────────
  Future<bool> loginProfessor(String email, String password) async {
   _isLoading = true;
-  notifyListeners(); // Avisa o botão para mostrar o loading
+  notifyListeners();
 
   try {
     await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -36,8 +36,8 @@ class AuthController extends ChangeNotifier {
   } catch (e) {
     _isLoading = false;
     notifyListeners();
-    print("Erro no login: $e"); // Veja este erro no console do VS Code!
-    return false; // Se retornar false, o 'ok' do seu botão será false e não navega
+    print("Erro no login: $e");
+    return false; 
   }
 }
   // ── Cadastro com e-mail e senha ──────────────────────────────────────────
@@ -54,7 +54,7 @@ class AuthController extends ChangeNotifier {
       final user = credential.user;
       if (user == null) throw FirebaseAuthException(code: 'null-user');
 
-      // Salva o nome de exibição no perfil Firebase
+    
       await user.updateDisplayName(name.trim());
 
       _currentUser = UserModel(
@@ -108,7 +108,6 @@ class AuthController extends ChangeNotifier {
       // Mobile (Android / iOS)
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        // Usuário cancelou
         _isLoading = false;
         notifyListeners();
         return false;

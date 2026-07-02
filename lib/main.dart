@@ -42,12 +42,10 @@ class EduGalaxyApp extends StatefulWidget {
 }
 
 class _EduGalaxyAppState extends State<EduGalaxyApp> {
-  // O roteador é criado uma única vez, persistindo durante toda a vida do App
   late final _router = createRouter();
 
   @override
   Widget build(BuildContext context) {
-    // Usamos o watch para reconstruir o tema quando mudar
     final auth = context.watch<AuthController>();
     final theme = auth.isProfessor
         ? AppTheme.professorTheme()
@@ -57,7 +55,6 @@ class _EduGalaxyAppState extends State<EduGalaxyApp> {
       title: 'EduGalaxy',
       debugShowCheckedModeBanner: false,
       theme: theme,
-      // Agora utilizamos o roteador persistente
       routerConfig: _router,
     );
   }
