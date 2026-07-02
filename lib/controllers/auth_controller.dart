@@ -21,41 +21,25 @@ class AuthController extends ChangeNotifier {
   bool get isProfessor => _currentUser?.role == UserRole.professor;
 
   // ── Login com e-mail e senha ─────────────────────────────────────────────
-  Future<bool> loginProfessor(String email, String password) async {
-    _isLoading = true;
-    _errorMessage = null;
+ Future<bool> loginProfessor(String email, String password) async {
+  _isLoading = true;
+  notifyListeners(); // Avisa o botão para mostrar o loading
+
+  try {
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email, 
+      password: password
+    );
+    _isLoading = false;
     notifyListeners();
-
-    try {
-      final credential = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      final user = credential.user;
-      if (user == null) throw FirebaseAuthException(code: 'null-user');
-
-      _currentUser = UserModel(
-        id: user.uid,
-        name: user.displayName ?? _nameFromEmail(user.email ?? ''),
-        email: user.email ?? '',
-        role: UserRole.professor,
-      );
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _translateError(e.code);
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _errorMessage = 'Erro inesperado. Tente novamente.';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
+    return true;
+  } catch (e) {
+    _isLoading = false;
+    notifyListeners();
+    print("Erro no login: $e"); // Veja este erro no console do VS Code!
+    return false; // Se retornar false, o 'ok' do seu botão será false e não navega
   }
-
+}
   // ── Cadastro com e-mail e senha ──────────────────────────────────────────
   Future<bool> registerProfessor(String name, String email, String password) async {
     _isLoading = true;

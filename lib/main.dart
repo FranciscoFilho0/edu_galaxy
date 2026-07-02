@@ -11,7 +11,16 @@ import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } catch (e) {
+    debugPrint("Erro ao inicializar Firebase: $e");
+  }
+  
   runApp(
     MultiProvider(
       providers: [
@@ -25,14 +34,21 @@ void main() async {
   );
 }
 
-class EduGalaxyApp extends StatelessWidget {
+class EduGalaxyApp extends StatefulWidget {
   const EduGalaxyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final auth = context.watch<AuthController>();
-    final router = createRouter();
+  State<EduGalaxyApp> createState() => _EduGalaxyAppState();
+}
 
+class _EduGalaxyAppState extends State<EduGalaxyApp> {
+  // O roteador é criado uma única vez, persistindo durante toda a vida do App
+  late final _router = createRouter();
+
+  @override
+  Widget build(BuildContext context) {
+    // Usamos o watch para reconstruir o tema quando mudar
+    final auth = context.watch<AuthController>();
     final theme = auth.isProfessor
         ? AppTheme.professorTheme()
         : AppTheme.studentTheme();
@@ -41,7 +57,8 @@ class EduGalaxyApp extends StatelessWidget {
       title: 'EduGalaxy',
       debugShowCheckedModeBanner: false,
       theme: theme,
-      routerConfig: router,
+      // Agora utilizamos o roteador persistente
+      routerConfig: _router,
     );
   }
 }
