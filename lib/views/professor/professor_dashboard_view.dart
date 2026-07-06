@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/professor_controller.dart';
+import '../../controllers/game_content_controller.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -17,10 +19,70 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final auth = context.read<AuthController>();
-      context.read<ProfessorController>().loadData(auth.currentUser?.id ?? '');
+      final professorId = auth.currentUser?.id ?? '';
+      await context.read<ProfessorController>().loadData(
+            professorId,
+            professorName: auth.currentUser?.name ?? 'Professor',
+          );
+      if (!mounted) return;
+      // Conteúdo dos jogos (perguntas, palavras, config. de matemática) também
+      // é carregado aqui, já filtrado pela sala deste professor.
+      context.read<GameContentController>().loadContent(professorId);
     });
+  }
+
+  void _showChangeCodeDialog(BuildContext context, String currentCode) {
+    final ctrl = TextEditingController(text: currentCode);
+    String? error;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Alterar código da turma', style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.w700)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Escolha um novo código de 6 caracteres. Se outro professor já estiver usando, você será avisado.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: ctrl,
+                textCapitalization: TextCapitalization.characters,
+                maxLength: 6,
+                decoration: InputDecoration(
+                  labelText: 'Novo código',
+                  errorText: error,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () async {
+                final newCode = ctrl.text.trim().toUpperCase();
+                if (newCode.length != 6) {
+                  setDialogState(() => error = 'O código precisa ter 6 caracteres.');
+                  return;
+                }
+                final ok = await context.read<ProfessorController>().changeRoomCode(newCode);
+                if (!ctx.mounted) return;
+                if (ok) {
+                  Navigator.pop(ctx);
+                } else {
+                  setDialogState(() => error = 'Esse código já está em uso. Tente outro.');
+                }
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -55,14 +117,23 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
       body: prof.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: () => prof.loadData(auth.currentUser?.id ?? ''),
+              onRefresh: () => prof.loadData(auth.currentUser?.id ?? '', professorName: auth.currentUser?.name ?? 'Professor'),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Room code card
-                    _RoomCodeCard(code: prof.room?.code ?? '------'),
+                    _RoomCodeCard(
+                      code: prof.room?.code ?? '------',
+                      onCopy: () {
+                        Clipboard.setData(ClipboardData(text: prof.room?.code ?? ''));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Código copiado!'), duration: Duration(seconds: 1)),
+                        );
+                      },
+                      onEdit: prof.room == null ? null : () => _showChangeCodeDialog(context, prof.room!.code),
+                    ),
                     const SizedBox(height: 20),
                     // Stats row
                     Row(
@@ -123,6 +194,11 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
                     // Recent results
                     const Text('Últimas atividades', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.profPrimary)),
                     const SizedBox(height: 12),
+                    if (prof.results.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text('Nenhuma partida registrada ainda.', style: TextStyle(color: Colors.grey)),
+                      ),
                     ...prof.results.take(3).map((r) => _RecentResultTile(result: r)),
                   ],
                 ),
@@ -134,7 +210,9 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
 
 class _RoomCodeCard extends StatelessWidget {
   final String code;
-  const _RoomCodeCard({required this.code});
+  final VoidCallback onCopy;
+  final VoidCallback? onEdit;
+  const _RoomCodeCard({required this.code, required this.onCopy, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -164,9 +242,15 @@ class _RoomCodeCard extends StatelessWidget {
               ],
             ),
           ),
+          if (onEdit != null)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: Colors.white70),
+              onPressed: onEdit,
+              tooltip: 'Alterar código',
+            ),
           IconButton(
             icon: const Icon(Icons.copy, color: Colors.white70),
-            onPressed: () {},
+            onPressed: onCopy,
             tooltip: 'Copiar código',
           ),
         ],

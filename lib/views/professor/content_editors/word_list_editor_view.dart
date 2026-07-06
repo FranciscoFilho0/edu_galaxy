@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../controllers/game_content_controller.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../models/word_entry_model.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -18,6 +19,7 @@ class WordListEditorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = context.watch<GameContentController>();
+    final professorId = context.watch<AuthController>().currentUser?.id ?? '';
     final words = type == WordListType.spelling ? content.spellingWords : content.syllableWords;
 
     return Scaffold(
@@ -62,8 +64,8 @@ class WordListEditorView extends StatelessWidget {
                         showSyllables: type == WordListType.syllables,
                         onEdit: () => _showEditDialog(context, w),
                         onDelete: () => type == WordListType.spelling
-                            ? content.removeSpellingWord(w.id)
-                            : content.removeSyllableWord(w.id),
+                            ? content.removeSpellingWord(professorId, w.id)
+                            : content.removeSyllableWord(professorId, w.id),
                       );
                     },
                   ),
@@ -81,6 +83,7 @@ class WordListEditorView extends StatelessWidget {
 
   void _showEditDialog(BuildContext context, WordEntryModel? existing) {
     final content = context.read<GameContentController>();
+    final professorId = context.read<AuthController>().currentUser?.id ?? '';
     final wordCtrl = TextEditingController(text: existing?.word ?? '');
     final hintCtrl = TextEditingController(text: existing?.hint ?? '');
     final subjectCtrl = TextEditingController(text: existing?.subject ?? '');
@@ -130,9 +133,13 @@ class WordListEditorView extends StatelessWidget {
                 subject: subjectCtrl.text.trim().isEmpty ? 'Geral' : subjectCtrl.text.trim(),
               );
               if (type == WordListType.spelling) {
-                existing == null ? content.addSpellingWord(newWord) : content.updateSpellingWord(newWord);
+                existing == null
+                    ? content.addSpellingWord(professorId, newWord)
+                    : content.updateSpellingWord(professorId, newWord);
               } else {
-                existing == null ? content.addSyllableWord(newWord) : content.updateSyllableWord(newWord);
+                existing == null
+                    ? content.addSyllableWord(professorId, newWord)
+                    : content.updateSyllableWord(professorId, newWord);
               }
               Navigator.pop(ctx);
             },

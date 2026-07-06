@@ -27,7 +27,10 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthController()),
         ChangeNotifierProvider(create: (_) => ProfessorController()),
         ChangeNotifierProvider(create: (_) => StudentController()),
-        ChangeNotifierProvider(create: (_) => GameContentController()..loadContent()),
+        // O conteúdo dos jogos agora é por sala/professor, então só é carregado
+        // depois do login (professor) ou depois de entrar na turma (aluno) —
+        // veja professor_dashboard_view.dart e student_home_view.dart.
+        ChangeNotifierProvider(create: (_) => GameContentController()),
       ],
       child: const EduGalaxyApp(),
     ),

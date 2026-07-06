@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../controllers/game_content_controller.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../core/theme/app_theme.dart';
 
 class MathConfigEditorView extends StatelessWidget {
@@ -28,6 +29,7 @@ class MathConfigEditorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = context.watch<GameContentController>();
+    final professorId = context.watch<AuthController>().currentUser?.id ?? '';
 
     return Scaffold(
       backgroundColor: AppTheme.profBackground,
@@ -48,7 +50,7 @@ class MathConfigEditorView extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 10),
               child: SwitchListTile(
                 value: active,
-                onChanged: (_) => context.read<GameContentController>().toggleOperation(op),
+                onChanged: (_) => context.read<GameContentController>().toggleOperation(professorId, op),
                 activeColor: AppTheme.profPrimary,
                 title: Row(
                   children: [
@@ -86,7 +88,7 @@ class MathConfigEditorView extends StatelessWidget {
                     min: 10, max: 100, divisions: 9,
                     activeColor: AppTheme.profPrimary,
                     label: '${content.mathMaxNumber}',
-                    onChanged: (v) => context.read<GameContentController>().setMathMaxNumber(v.round()),
+                    onChanged: (v) => context.read<GameContentController>().setMathMaxNumber(professorId, v.round()),
                   ),
                 ],
               ),

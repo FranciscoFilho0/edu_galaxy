@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
-import '../../models/student_model.dart';
 import '../../core/router/app_routes.dart';
 
 class StudentProfileSetupView extends StatefulWidget {
-  final String roomCode;
-  const StudentProfileSetupView({super.key, required this.roomCode});
+  const StudentProfileSetupView({super.key});
 
   @override
   State<StudentProfileSetupView> createState() => _StudentProfileSetupViewState();
@@ -16,6 +14,7 @@ class StudentProfileSetupView extends StatefulWidget {
 class _StudentProfileSetupViewState extends State<StudentProfileSetupView> {
   final _nameCtrl = TextEditingController();
   int _selectedAvatar = 0;
+  bool _saving = false;
 
   static const List<Map<String, String>> _avatars = [
     {'emoji': '🧑‍🚀', 'name': 'Astronauta'},
@@ -35,6 +34,7 @@ class _StudentProfileSetupViewState extends State<StudentProfileSetupView> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
+    final roomCode = auth.pendingRoomCode ?? '';
 
     return Scaffold(
       body: Container(
@@ -56,7 +56,7 @@ class _StudentProfileSetupViewState extends State<StudentProfileSetupView> {
                   color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold,
                 )),
                 const SizedBox(height: 4),
-                Text('Turma: ${widget.roomCode}', style: const TextStyle(
+                Text('Turma: $roomCode', style: const TextStyle(
                   color: Color(0xFF7C3AED), fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 2,
                 )),
                 const SizedBox(height: 32),
@@ -108,7 +108,7 @@ class _StudentProfileSetupViewState extends State<StudentProfileSetupView> {
                 // Name field
                 const Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('Seu nome de piloto:', style: TextStyle(
+                  child: Text('Seu nome (o mesmo que o professor cadastrou):', style: TextStyle(
                     color: Color(0xFF89B4FA), fontSize: 16, fontWeight: FontWeight.w600,
                   )),
                 ),
@@ -117,7 +117,7 @@ class _StudentProfileSetupViewState extends State<StudentProfileSetupView> {
                   controller: _nameCtrl,
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                   decoration: InputDecoration(
-                    hintText: 'Ex: João Astronauta',
+                    hintText: 'Ex: João',
                     hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
                     prefixIcon: Text(
                       _avatars[_selectedAvatar]['emoji']!,
@@ -145,27 +145,39 @@ class _StudentProfileSetupViewState extends State<StudentProfileSetupView> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: _saving ? null : () async {
                       if (_nameCtrl.text.trim().isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Digite seu nome de piloto!'), backgroundColor: Color(0xFFEC4899)),
                         );
                         return;
                       }
-                      final student = StudentModel(
-                        id: 'stu_${DateTime.now().millisecondsSinceEpoch}',
+                      setState(() => _saving = true);
+                      final ok = await auth.registerStudentProfile(
                         name: _nameCtrl.text.trim(),
-                        roomCode: widget.roomCode,
                         avatarIndex: '$_selectedAvatar',
                       );
-                      auth.setStudentProfile(student);
-                      context.go(AppRoutes.studentHome);
+                      if (!context.mounted) return;
+                      if (ok) {
+                        context.go(AppRoutes.studentHome);
+                      } else {
+                        setState(() => _saving = false);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(auth.errorMessage ?? 'Não foi possível entrar na turma. Tente novamente.'),
+                            backgroundColor: const Color(0xFFEC4899),
+                          ),
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF7C3AED),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                     ),
-                    child: const Row(
+                    child: _saving
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.rocket_launch, color: Colors.white),

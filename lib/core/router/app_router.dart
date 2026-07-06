@@ -39,10 +39,7 @@ GoRouter createRouter() {
       ),
       GoRoute(
         path: AppRoutes.studentProfileSetup,
-        builder: (context, state) {
-          final roomCode = state.uri.queryParameters['roomCode'] ?? '';
-          return StudentProfileSetupView(roomCode: roomCode);
-        },
+        builder: (context, state) => const StudentProfileSetupView(),
       ),
 
       // ── Professor (ShellRoute for bottom nav) ────────────────────────────

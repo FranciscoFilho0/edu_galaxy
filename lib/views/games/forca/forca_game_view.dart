@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../controllers/game_content_controller.dart';
+import '../../../controllers/student_controller.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../models/word_entry_model.dart';
+import '../../../models/game_result_model.dart';
 import '../../../core/theme/app_theme.dart';
 import '../shared/game_top_bar.dart';
 import '../shared/game_result_screen.dart';
@@ -84,9 +87,31 @@ class _ForcaGameViewState extends State<ForcaGameView> {
           });
         } else {
           setState(() => _isFinished = true);
+          _saveResult();
         }
       });
     }
+  }
+
+  void _saveResult() {
+    final auth = context.read<AuthController>();
+    final student = auth.currentStudent;
+    if (student == null) return;
+    context.read<StudentController>().saveResult(
+          professorId: student.professorId,
+          result: GameResultModel(
+            id: '',
+            studentId: student.id,
+            studentName: student.name,
+            gameId: 'forca',
+            gameName: 'Forca Galáctica',
+            subject: 'Português',
+            score: _score,
+            totalQuestions: _words.length,
+            playedAt: DateTime.now(),
+            durationSeconds: DateTime.now().difference(_startTime).inSeconds,
+          ),
+        );
   }
 
   void _restart() {

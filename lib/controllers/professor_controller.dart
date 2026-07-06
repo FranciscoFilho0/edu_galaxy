@@ -3,8 +3,11 @@ import '../models/student_model.dart';
 import '../models/game_result_model.dart';
 import '../models/room_model.dart';
 import '../models/game_model.dart';
+import '../services/firestore_service.dart';
 
 class ProfessorController extends ChangeNotifier {
+  final FirestoreService _db = FirestoreService.instance;
+
   bool _isLoading = false;
   String? _errorMessage;
   List<StudentModel> _students = [];
@@ -19,101 +22,101 @@ class ProfessorController extends ChangeNotifier {
   RoomModel? get room => _room;
   List<GameModel> get games => _games;
 
-  Future<void> loadData(String professorId) async {
+  /// Carrega a sala, os alunos, os resultados e os jogos ativos desse
+  /// professor — tudo filtrado pelo professorId, então um professor nunca
+  /// enxerga dado de outro.
+  Future<void> loadData(String professorId, {String professorName = 'Professor'}) async {
+    if (professorId.isEmpty) return;
     _isLoading = true;
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 800));
+    try {
+      final room = await _db.getOrCreateRoom(professorId: professorId, professorName: professorName);
+      final students = await _db.fetchStudents(professorId);
+      final results = await _db.fetchResults(professorId);
+      final activation = await _db.fetchGamesActivation(professorId);
 
-    _students = [
-      const StudentModel(id: 's1', name: 'Ana Silva', roomCode: 'ABC123', avatarIndex: '0'),
-      const StudentModel(id: 's2', name: 'Bruno Costa', roomCode: 'ABC123', avatarIndex: '2'),
-      const StudentModel(id: 's3', name: 'Carla Mendes', roomCode: 'ABC123', avatarIndex: '1'),
-      const StudentModel(id: 's4', name: 'Diego Souza', roomCode: 'ABC123', avatarIndex: '3'),
-      const StudentModel(id: 's5', name: 'Elena Rocha', roomCode: 'ABC123', avatarIndex: '4'),
-    ];
-
-    _results = [
-      GameResultModel(
-        id: 'r1', studentId: 's1', studentName: 'Ana Silva',
-        gameId: 'calculos', gameName: 'Cálculos Espaciais', subject: 'Matemática',
-        score: 8, totalQuestions: 10, durationSeconds: 120,
-        playedAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      GameResultModel(
-        id: 'r2', studentId: 's2', studentName: 'Bruno Costa',
-        gameId: 'soletrar', gameName: 'Soletrar Espacial', subject: 'Português',
-        score: 6, totalQuestions: 10, durationSeconds: 180,
-        playedAt: DateTime.now().subtract(const Duration(hours: 3)),
-      ),
-      GameResultModel(
-        id: 'r3', studentId: 's3', studentName: 'Carla Mendes',
-        gameId: 'calculos', gameName: 'Cálculos Espaciais', subject: 'Matemática',
-        score: 10, totalQuestions: 10, durationSeconds: 95,
-        playedAt: DateTime.now().subtract(const Duration(hours: 1)),
-      ),
-      GameResultModel(
-        id: 'r4', studentId: 's4', studentName: 'Diego Souza',
-        gameId: 'forca', gameName: 'Forca Galáctica', subject: 'Português',
-        score: 5, totalQuestions: 10, durationSeconds: 210,
-        playedAt: DateTime.now().subtract(const Duration(hours: 5)),
-      ),
-      GameResultModel(
-        id: 'r5', studentId: 's1', studentName: 'Ana Silva',
-        gameId: 'perguntas', gameName: 'Perguntas Espaciais', subject: 'Geral',
-        score: 9, totalQuestions: 10, durationSeconds: 110,
-        playedAt: DateTime.now().subtract(const Duration(hours: 6)),
-      ),
-    ];
-
-    _room = RoomModel(
-      code: 'ABC123',
-      professorId: professorId,
-      professorName: 'Professor',
-      students: _students,
-      activeSubjects: ['Matemática', 'Português', 'Ciências'],
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    );
+      _room = room;
+      _students = students;
+      _results = results;
+      _games = GameModel.allGames
+          .map((g) => GameModel(
+                id: g.id,
+                title: g.title,
+                subject: g.subject,
+                description: g.description,
+                iconEmoji: g.iconEmoji,
+                difficulty: g.difficulty,
+                isActive: activation[g.id] ?? true,
+              ))
+          .toList();
+    } catch (e) {
+      _errorMessage = 'Não foi possível carregar os dados da turma.';
+      debugPrint('Erro ao carregar dados do professor: $e');
+    }
 
     _isLoading = false;
     notifyListeners();
   }
 
   Future<bool> addStudent(String name) async {
+    if (_room == null) return false;
     _isLoading = true;
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    final newStudent = StudentModel(
-      id: 's${_students.length + 1}',
-      name: name,
-      roomCode: _room?.code ?? '',
-      avatarIndex: '${_students.length % 5}',
-    );
-
-    _students = [..._students, newStudent];
-    _isLoading = false;
-    notifyListeners();
-    return true;
+    try {
+      final newStudent = await _db.addStudent(
+        professorId: _room!.professorId,
+        roomCode: _room!.code,
+        name: name,
+        avatarIndex: '${_students.length % 5}',
+      );
+      _students = [..._students, newStudent];
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Erro ao cadastrar aluno: $e');
+      return false;
+    }
   }
 
-  void toggleGameActive(String gameId) {
+  Future<void> toggleGameActive(String gameId) async {
+    if (_room == null) return;
+    final game = _games.firstWhere((g) => g.id == gameId);
+    final newValue = !game.isActive;
+
+    // Atualiza a tela imediatamente...
     _games = _games.map((g) {
       if (g.id == gameId) {
         return GameModel(
-          id: g.id,
-          title: g.title,
-          subject: g.subject,
-          description: g.description,
-          iconEmoji: g.iconEmoji,
-          difficulty: g.difficulty,
-          isActive: !g.isActive,
+          id: g.id, title: g.title, subject: g.subject, description: g.description,
+          iconEmoji: g.iconEmoji, difficulty: g.difficulty, isActive: newValue,
         );
       }
       return g;
     }).toList();
     notifyListeners();
+
+    // ...e depois salva no banco, para o aluno passar a ver a mudança.
+    await _db.setGameActive(_room!.professorId, gameId, newValue);
+  }
+
+  /// Tenta trocar o código da sala. Retorna false se o código já estiver em uso.
+  Future<bool> changeRoomCode(String newCode) async {
+    if (_room == null) return false;
+    final ok = await _db.changeRoomCode(
+      professorId: _room!.professorId,
+      currentCode: _room!.code,
+      newCode: newCode,
+    );
+    if (ok) {
+      _room = _room!.copyWith(code: newCode.trim().toUpperCase());
+      notifyListeners();
+    }
+    return ok;
   }
 
   List<GameResultModel> getResultsForStudent(String studentId) {

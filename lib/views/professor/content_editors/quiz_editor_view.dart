@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../controllers/game_content_controller.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../models/quiz_question_model.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -11,6 +12,7 @@ class QuizEditorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = context.watch<GameContentController>();
+    final professorId = context.watch<AuthController>().currentUser?.id ?? '';
 
     return Scaffold(
       backgroundColor: AppTheme.profBackground,
@@ -29,7 +31,7 @@ class QuizEditorView extends StatelessWidget {
                 return _QuestionCard(
                   question: q,
                   onEdit: () => _showEditDialog(context, q),
-                  onDelete: () => content.removeQuizQuestion(q.id),
+                  onDelete: () => content.removeQuizQuestion(professorId, q.id),
                 );
               },
             ),
@@ -44,6 +46,7 @@ class QuizEditorView extends StatelessWidget {
 
   void _showEditDialog(BuildContext context, QuizQuestionModel? existing) {
     final content = context.read<GameContentController>();
+    final professorId = context.read<AuthController>().currentUser?.id ?? '';
     final questionCtrl = TextEditingController(text: existing?.question ?? '');
     final subjectCtrl = TextEditingController(text: existing?.subject ?? '');
     final optionCtrls = List.generate(4, (i) =>
@@ -120,9 +123,9 @@ class QuizEditorView extends StatelessWidget {
                   correctIndex: correctIndex,
                 );
                 if (existing == null) {
-                  content.addQuizQuestion(newQ);
+                  content.addQuizQuestion(professorId, newQ);
                 } else {
-                  content.updateQuizQuestion(newQ);
+                  content.updateQuizQuestion(professorId, newQ);
                 }
                 Navigator.pop(ctx);
               },

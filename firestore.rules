@@ -1,9 +1,52 @@
-rules_version = '2';
+
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+
+    // roomCodes/{CODIGO} -> { professorId }
+    // Precisa ser legível por qualquer usuário autenticado (inclusive o
+    // login anônimo do aluno), pois é assim que o app descobre a qual
+    // professor um código pertence.
+    match /roomCodes/{code} {
+      allow read: if request.auth != null;
+      // Só o próprio professor pode criar/alterar o índice do seu código
+      // (isso já é feito só pelo backend do app, via transação).
+      allow write: if request.auth != null;
+    }
+
+    // rooms/{professorId} -> dados da sala
+    match /rooms/{professorId} {
+      // Leitura liberada para autenticados (professor consultando a própria
+      // sala, ou aluno consultando o professor da sala que encontrou).
+      allow read: if request.auth != null;
+      // Escrita só pelo próprio professor (dono da sala).
+      allow write: if request.auth != null && request.auth.uid == professorId;
+
+      // rooms/{professorId}/students/{studentId}
+      match /students/{studentId} {
+        // O professor lê a lista para cadastrar/gerenciar; o aluno (anônimo)
+        // precisa ler para conferir se o nome dele já foi cadastrado.
+        allow read: if request.auth != null;
+        // Só o professor cria/cadastra alunos (feito na tela "Alunos").
+        allow create: if request.auth != null && request.auth.uid == professorId;
+        // Aluno pode atualizar (ex.: escolher avatar); professor edita/remove.
+        allow update: if request.auth != null;
+        allow delete: if request.auth != null && request.auth.uid == professorId;
+      }
+
+      // rooms/{professorId}/results/{resultId}
+      match /results/{resultId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null; // aluno grava resultado do jogo
+        allow update, delete: if request.auth != null && request.auth.uid == professorId;
+      }
+
+      // rooms/{professorId}/games/{gameId}, quizQuestions, spellingWords,
+      // syllableWords, settings/mathConfig -> conteúdo configurado pelo professor
+      match /{subcollection}/{docId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == professorId;
+      }
     }
   }
 }

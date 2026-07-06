@@ -5,6 +5,9 @@ import '../../controllers/professor_controller.dart';
 import '../../models/game_model.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/router/app_routes.dart';
+// Observação: toggleGameActive já sabe a sala certa através de
+// ProfessorController._room (carregado no dashboard), por isso esta tela
+// não precisa lidar com professorId diretamente.
 
 class ProfessorGamesView extends StatelessWidget {
   const ProfessorGamesView({super.key});

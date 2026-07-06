@@ -35,8 +35,21 @@ class GameResultModel {
       subject: map['subject'] ?? '',
       score: map['score'] ?? 0,
       totalQuestions: map['totalQuestions'] ?? 0,
-      playedAt: DateTime.parse(map['playedAt'] ?? DateTime.now().toIso8601String()),
+      playedAt: DateTime.tryParse(map['playedAt'] ?? '') ?? DateTime.now(),
       durationSeconds: map['durationSeconds'] ?? 0,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'studentId': studentId,
+        'studentName': studentName,
+        'gameId': gameId,
+        'gameName': gameName,
+        'subject': subject,
+        'score': score,
+        'totalQuestions': totalQuestions,
+        'playedAt': playedAt.toIso8601String(),
+        'durationSeconds': durationSeconds,
+      };
 }

@@ -1,10 +1,7 @@
-import 'student_model.dart';
-
 class RoomModel {
   final String code;
   final String professorId;
   final String professorName;
-  final List<StudentModel> students;
   final List<String> activeSubjects;
   final DateTime createdAt;
 
@@ -12,21 +9,34 @@ class RoomModel {
     required this.code,
     required this.professorId,
     required this.professorName,
-    required this.students,
     required this.activeSubjects,
     required this.createdAt,
   });
 
-  factory RoomModel.fromMap(Map<String, dynamic> map) {
+  factory RoomModel.fromMap(String professorId, Map<String, dynamic> map) {
     return RoomModel(
       code: map['code'] ?? '',
-      professorId: map['professorId'] ?? '',
+      professorId: professorId,
       professorName: map['professorName'] ?? '',
-      students: (map['students'] as List<dynamic>? ?? [])
-          .map((s) => StudentModel.fromMap(s as Map<String, dynamic>))
-          .toList(),
-      activeSubjects: List<String>.from(map['activeSubjects'] ?? []),
-      createdAt: DateTime.parse(map['createdAt'] ?? DateTime.now().toIso8601String()),
+      activeSubjects: List<String>.from(map['activeSubjects'] ?? const ['Matemática', 'Português', 'Ciências']),
+      createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'code': code,
+        'professorName': professorName,
+        'activeSubjects': activeSubjects,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  RoomModel copyWith({String? code}) {
+    return RoomModel(
+      code: code ?? this.code,
+      professorId: professorId,
+      professorName: professorName,
+      activeSubjects: activeSubjects,
+      createdAt: createdAt,
     );
   }
 }

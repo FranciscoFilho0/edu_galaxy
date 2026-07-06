@@ -125,7 +125,7 @@ class _StudentRoomEntryViewState extends State<StudentRoomEntryView> {
                       onPressed: auth.isLoading ? null : () async {
                         final ok = await auth.loginWithRoomCode(_codeCtrl.text.trim().toUpperCase());
                         if (ok && context.mounted) {
-                          context.go('${AppRoutes.studentProfileSetup}?roomCode=${_codeCtrl.text.trim().toUpperCase()}');
+                          context.go(AppRoutes.studentProfileSetup);
                         }
                       },
                       style: ElevatedButton.styleFrom(

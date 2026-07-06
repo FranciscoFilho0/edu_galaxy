@@ -3,15 +3,28 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import '../models/student_model.dart';
+import '../services/firestore_service.dart';
 
 class AuthController extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirestoreService _db = FirestoreService.instance;
 
   UserModel? _currentUser;
   StudentModel? _currentStudent;
   bool _isLoading = false;
   String? _errorMessage;
+
+  // Dados temporários guardados entre a tela de "código da turma" e a tela
+  // de "criar perfil do aluno" (ainda não temos um StudentModel completo
+  // nesse meio-tempo, só sabemos a qual professor a sala pertence).
+  String? _pendingProfessorId;
+  String? _pendingProfessorName;
+  String? _pendingRoomCode;
+  // Lista de alunos que o PROFESSOR já cadastrou nessa sala. É contra essa
+  // lista que validamos o nome digitado na tela seguinte — o aluno só
+  // consegue entrar se o professor já tiver cadastrado ele antes.
+  List<StudentModel> _pendingRoomStudents = [];
 
   UserModel? get currentUser => _currentUser;
   StudentModel? get currentStudent => _currentStudent;
@@ -20,26 +33,51 @@ class AuthController extends ChangeNotifier {
   bool get isAuthenticated => _currentUser != null || _currentStudent != null;
   bool get isProfessor => _currentUser?.role == UserRole.professor;
 
-  // ── Login com e-mail e senha ─────────────────────────────────────────────
- Future<bool> loginProfessor(String email, String password) async {
-  _isLoading = true;
-  notifyListeners();
+  String? get pendingProfessorId => _pendingProfessorId;
+  String? get pendingProfessorName => _pendingProfessorName;
+  String? get pendingRoomCode => _pendingRoomCode;
+  List<StudentModel> get pendingRoomStudents => _pendingRoomStudents;
 
-  try {
-    await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: email, 
-      password: password
-    );
-    _isLoading = false;
+  // ── Login com e-mail e senha ─────────────────────────────────────────────
+  Future<bool> loginProfessor(String email, String password) async {
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
-    return true;
-  } catch (e) {
-    _isLoading = false;
-    notifyListeners();
-    print("Erro no login: $e");
-    return false; 
+
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      final user = credential.user;
+      if (user == null) throw FirebaseAuthException(code: 'null-user');
+
+      _currentUser = UserModel(
+        id: user.uid,
+        name: user.displayName ?? _nameFromEmail(user.email ?? ''),
+        email: user.email ?? '',
+        role: UserRole.professor,
+      );
+
+      // Garante que a sala desse professor existe (se já existir, só a reaproveita).
+      await _db.getOrCreateRoom(professorId: user.uid, professorName: _currentUser!.name);
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = _translateError(e.code);
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Erro no login: $e');
+      return false;
+    }
   }
-}
+
   // ── Cadastro com e-mail e senha ──────────────────────────────────────────
   Future<bool> registerProfessor(String name, String email, String password) async {
     _isLoading = true;
@@ -54,7 +92,6 @@ class AuthController extends ChangeNotifier {
       final user = credential.user;
       if (user == null) throw FirebaseAuthException(code: 'null-user');
 
-    
       await user.updateDisplayName(name.trim());
 
       _currentUser = UserModel(
@@ -63,6 +100,10 @@ class AuthController extends ChangeNotifier {
         email: user.email ?? '',
         role: UserRole.professor,
       );
+
+      // Cria a sala já no cadastro, com um código único gerado na hora.
+      await _db.getOrCreateRoom(professorId: user.uid, professorName: _currentUser!.name);
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -86,10 +127,7 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      GoogleAuthCredential? authCredential;
-
       if (kIsWeb) {
-        // Web: usa popup
         final provider = GoogleAuthProvider();
         final result = await _auth.signInWithPopup(provider);
         final user = result.user;
@@ -100,6 +138,7 @@ class AuthController extends ChangeNotifier {
           email: user.email ?? '',
           role: UserRole.professor,
         );
+        await _db.getOrCreateRoom(professorId: user.uid, professorName: _currentUser!.name);
         _isLoading = false;
         notifyListeners();
         return true;
@@ -129,6 +168,8 @@ class AuthController extends ChangeNotifier {
         email: user.email ?? '',
         role: UserRole.professor,
       );
+      await _db.getOrCreateRoom(professorId: user.uid, professorName: _currentUser!.name);
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -164,28 +205,129 @@ class AuthController extends ChangeNotifier {
   }
 
   // ── Login aluno por código de sala ───────────────────────────────────────
+  /// Agora consulta o Firestore de verdade: só passa se o código pertencer
+  /// a uma sala existente. Guarda o professorId encontrado para usarmos na
+  /// tela seguinte (criação do perfil do aluno).
   Future<bool> loginWithRoomCode(String roomCode) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 600));
+    final code = roomCode.trim().toUpperCase();
+    if (code.length != 6) {
+      _errorMessage = 'Código de sala inválido. Use 6 dígitos.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
 
-    if (roomCode.length == 6) {
+    try {
+      // O aluno não faz login com e-mail/senha nem Google, mas o Firestore
+      // (com as regras de segurança recomendadas) só permite leitura para
+      // usuários autenticados. Por isso, garantimos um login anônimo antes
+      // de consultar o código da sala. Isso não cria conta "de verdade":
+      // é só um UID técnico do Firebase Auth para satisfazer as regras.
+      if (_auth.currentUser == null) {
+        await _auth.signInAnonymously();
+      }
+
+      final room = await _db.resolveRoomByCode(code);
+      if (room == null) {
+        _errorMessage = 'Não encontramos nenhuma turma com esse código.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final professorId = room['professorId']!;
+
+      // Só deixamos passar se o professor já tiver cadastrado pelo menos
+      // um aluno nessa turma. Isso evita que qualquer pessoa com o código
+      // entre sem estar na lista do professor.
+      final students = await _db.fetchStudents(professorId);
+      if (students.isEmpty) {
+        _errorMessage = 'Essa turma ainda não tem alunos cadastrados. Peça ao seu professor para te cadastrar antes de entrar.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      _pendingProfessorId = professorId;
+      _pendingProfessorName = room['professorName'];
+      _pendingRoomCode = room['code'];
+      _pendingRoomStudents = students;
+
       _isLoading = false;
       notifyListeners();
       return true;
-    } else {
-      _errorMessage = 'Código de sala inválido. Use 6 dígitos.';
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Erro (FirebaseAuth) ao verificar código de sala: ${e.code} - ${e.message}');
+      _errorMessage = 'Erro ao verificar o código. Tente novamente.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      // Deixamos o erro real no log (visível no terminal/Logcat) para
+      // facilitar o diagnóstico, mesmo mostrando uma mensagem amigável
+      // para o aluno.
+      debugPrint('Erro ao verificar código de sala: $e');
+      _errorMessage = 'Erro ao verificar o código. Tente novamente.';
       _isLoading = false;
       notifyListeners();
       return false;
     }
   }
 
-  void setStudentProfile(StudentModel student) {
-    _currentStudent = student;
+
+  /// Confirma a entrada do aluno na turma. NÃO cria nenhum aluno novo —
+  /// só permite continuar se o nome digitado bater com um aluno que o
+  /// PROFESSOR já cadastrou nessa sala (comparação sem diferenciar
+  /// maiúsculas/minúsculas e ignorando espaços extras).
+  Future<bool> registerStudentProfile({
+    required String name,
+    required String avatarIndex,
+  }) async {
+    if (_pendingProfessorId == null || _pendingRoomCode == null) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
+
+    final typedName = name.trim().toLowerCase();
+
+    StudentModel? match;
+    for (final s in _pendingRoomStudents) {
+      if (s.name.trim().toLowerCase() == typedName) {
+        match = s;
+        break;
+      }
+    }
+
+    if (match == null) {
+      _errorMessage = 'Não encontramos esse nome na turma. Confira com seu professor se ele já te cadastrou (com o mesmo nome).';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+
+    try {
+      // Guarda o avatar escolhido no registro que o professor já criou.
+      await FirestoreService.instance.updateStudentAvatar(
+        professorId: _pendingProfessorId!,
+        studentId: match.id,
+        avatarIndex: avatarIndex,
+      );
+      _currentStudent = match.copyWith(avatarIndex: avatarIndex);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao entrar na turma: $e');
+      _errorMessage = 'Erro ao entrar na turma. Tente novamente.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   Future<void> logout() async {
@@ -193,6 +335,10 @@ class AuthController extends ChangeNotifier {
     await _googleSignIn.signOut();
     _currentUser = null;
     _currentStudent = null;
+    _pendingProfessorId = null;
+    _pendingProfessorName = null;
+    _pendingRoomCode = null;
+    _pendingRoomStudents = [];
     _errorMessage = null;
     notifyListeners();
   }

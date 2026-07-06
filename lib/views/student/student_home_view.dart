@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/student_controller.dart';
+import '../../controllers/game_content_controller.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -21,7 +22,15 @@ class _StudentHomeViewState extends State<StudentHomeView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthController>();
-      context.read<StudentController>().loadGames(auth.currentStudent?.roomCode ?? '');
+      final student = auth.currentStudent;
+      if (student == null) return;
+      // Sempre buscamos os jogos ativos e as perguntas/palavras da sala
+      // do professor deste aluno (student.professorId) — nunca de outra sala.
+      context.read<StudentController>().loadGames(
+            professorId: student.professorId,
+            studentId: student.id,
+          );
+      context.read<GameContentController>().loadContent(student.professorId);
     });
   }
 
