@@ -148,13 +148,6 @@ class _StudentCard extends StatelessWidget {
                 ],
               ),
             ),
-            PopupMenuButton(
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.bar_chart_outlined, size: 18), SizedBox(width: 8), Text('Ver resultados')])),
-                const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 18), SizedBox(width: 8), Text('Editar')])),
-                const PopupMenuItem(value: 'remove', child: Row(children: [Icon(Icons.delete_outline, size: 18, color: Colors.red), SizedBox(width: 8), Text('Remover', style: TextStyle(color: Colors.red))])),
-              ],
-            ),
           ],
         ),
       ),
