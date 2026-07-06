@@ -27,8 +27,6 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
             professorName: auth.currentUser?.name ?? 'Professor',
           );
       if (!mounted) return;
-      // Conteúdo dos jogos (perguntas, palavras, config. de matemática) também
-      // é carregado aqui, já filtrado pela sala deste professor.
       context.read<GameContentController>().loadContent(professorId);
     });
   }
@@ -108,9 +106,9 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
             icon: const Icon(Icons.logout),
             tooltip: 'Sair',
             onPressed: () async {
-  await auth.logout();
-  context.go(AppRoutes.login);
-},
+              await auth.logout();
+              context.go(AppRoutes.login);
+            },
           ),
         ],
       ),
@@ -123,7 +121,6 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Room code card
                     _RoomCodeCard(
                       code: prof.room?.code ?? '------',
                       onCopy: () {
@@ -135,7 +132,6 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
                       onEdit: prof.room == null ? null : () => _showChangeCodeDialog(context, prof.room!.code),
                     ),
                     const SizedBox(height: 20),
-                    // Stats row
                     Row(
                       children: [
                         Expanded(child: _StatCard(label: 'Alunos', value: '${prof.students.length}', icon: Icons.people, color: AppTheme.profPrimary)),
@@ -146,7 +142,6 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    // Quick actions
                     const Text('Acesso rápido', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.profPrimary)),
                     const SizedBox(height: 12),
                     Row(
@@ -191,7 +186,6 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    // Recent results
                     const Text('Últimas atividades', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.profPrimary)),
                     const SizedBox(height: 12),
                     if (prof.results.isEmpty)
@@ -278,8 +272,16 @@ class _StatCard extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(
+            value, 
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color),
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            label, 
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
@@ -313,12 +315,22 @@ class _QuickActionCard extends StatelessWidget {
               child: Icon(icon, color: color, size: 22),
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label, 
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    subtitle, 
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),

@@ -41,8 +41,10 @@ class StudentGameSelectView extends StatelessWidget {
                       : GridView.builder(
                           padding: const EdgeInsets.all(16),
                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14,
-                            childAspectRatio: 0.85,
+                            crossAxisCount: 2, 
+                            crossAxisSpacing: 14, 
+                            mainAxisSpacing: 14,
+                            childAspectRatio: 0.78,
                           ),
                           itemCount: ctrl.availableGames.length,
                           itemBuilder: (context, i) => _GameCard(game: ctrl.availableGames[i]),
@@ -87,7 +89,6 @@ class _GameCard extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Background decoration circle
             Positioned(
               right: -16, top: -16,
               child: Container(
@@ -99,36 +100,53 @@ class _GameCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(game.iconEmoji, style: const TextStyle(fontSize: 40)),
+                  Text(game.iconEmoji, style: const TextStyle(fontSize: 36)),
                   const Spacer(),
-                  Text(game.title, style: const TextStyle(
-                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold,
-                  )),
-                  const SizedBox(height: 4),
-                  Text(game.subject, style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12)),
+                  Text(
+                    game.title, 
+                    style: const TextStyle(
+                      color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    game.subject, 
+                    style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(10),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            game.difficulty, 
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        child: Text(game.difficulty, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       Container(
-                        width: 30, height: 30,
+                        width: 28, height: 28,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white.withOpacity(0.2),
                         ),
-                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
+                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
                       ),
                     ],
                   ),
