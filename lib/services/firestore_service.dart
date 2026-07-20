@@ -168,6 +168,40 @@ class FirestoreService {
     return student;
   }
 
+  /// Atualiza o nome de um aluno já cadastrado.
+  Future<void> updateStudentName({
+    required String professorId,
+    required String studentId,
+    required String name,
+  }) async {
+    await _roomDoc(professorId)
+        .collection('students')
+        .doc(studentId)
+        .update({'name': name});
+  }
+
+  /// Exclui o aluno e também todos os resultados de jogos que ele já tinha
+  /// registrado, para não deixar "lixo" órfão no banco (resultado apontando
+  /// para um aluno que não existe mais).
+  Future<void> deleteStudent({
+    required String professorId,
+    required String studentId,
+  }) async {
+    final resultsSnap = await _roomDoc(professorId)
+        .collection('results')
+        .where('studentId', isEqualTo: studentId)
+        .get();
+
+    // Batch: agrupa várias operações de escrita para executar de uma vez só,
+    // em vez de fazer uma chamada ao banco por resultado.
+    final batch = _db.batch();
+    for (final doc in resultsSnap.docs) {
+      batch.delete(doc.reference);
+    }
+    batch.delete(_roomDoc(professorId).collection('students').doc(studentId));
+    await batch.commit();
+  }
+
   // ── Resultados de jogos ─────────────────────────────────────────────────
 
   Future<List<GameResultModel>> fetchResults(String professorId) async {

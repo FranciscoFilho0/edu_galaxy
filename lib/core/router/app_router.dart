@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'app_routes.dart';
+import '../../views/auth/splash_view.dart';
 import '../../views/auth/login_view.dart';
 import '../../views/auth/student_room_entry_view.dart';
 import '../../views/auth/student_profile_setup_view.dart';
 import '../../views/professor/professor_dashboard_view.dart';
 import '../../views/professor/professor_results_view.dart';
 import '../../views/professor/professor_students_view.dart';
+import '../../views/professor/professor_student_detail_view.dart';
 import '../../views/professor/professor_games_view.dart';
 import '../../views/professor/content_editors/quiz_editor_view.dart';
 import '../../views/professor/content_editors/word_list_editor_view.dart';
@@ -20,14 +22,26 @@ import '../../views/games/soletrar/soletrar_game_view.dart';
 import '../../views/games/forca/forca_game_view.dart';
 import '../../views/games/silabas/silabas_game_view.dart';
 import '../../views/games/perguntas/perguntas_game_view.dart';
+import '../../views/casual_games/casual_games_hub_view.dart';
+import '../../views/casual_games/tic_tac_toe_view.dart';
+import '../../views/casual_games/checkers_view.dart';
+import '../../views/casual_games/memory_game_view.dart';
+import '../../views/casual_games/tetris_view.dart';
+import '../../views/casual_games/block_blast_view.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 GoRouter createRouter() {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: AppRoutes.login,
+    initialLocation: AppRoutes.splash,
     routes: [
+      // ── Splash ────────────────────────────────────────────────────────────
+      GoRoute(
+        path: AppRoutes.splash,
+        builder: (context, state) => const SplashView(),
+      ),
+
       // ── Auth ──────────────────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.login,
@@ -59,6 +73,13 @@ GoRouter createRouter() {
             builder: (context, state) => const ProfessorStudentsView(),
           ),
           GoRoute(
+            path: AppRoutes.professorStudentDetail,
+            builder: (context, state) {
+              final studentId = state.pathParameters['studentId'] ?? '';
+              return ProfessorStudentDetailView(studentId: studentId);
+            },
+          ),
+          GoRoute(
             path: AppRoutes.professorGames,
             builder: (context, state) => const ProfessorGamesView(),
           ),
@@ -81,6 +102,10 @@ GoRouter createRouter() {
             path: AppRoutes.studentRanking,
             builder: (context, state) => const StudentRankingView(),
           ),
+          GoRoute(
+            path: AppRoutes.studentCasualGames,
+            builder: (context, state) => const CasualGamesHubView(),
+          ),
         ],
       ),
 
@@ -101,6 +126,27 @@ GoRouter createRouter() {
               return const PerguntasGameView();
             default:
               return GamePlaceholderView(gameId: gameId);
+          }
+        },
+      ),
+
+      GoRoute(
+        path: AppRoutes.casualGamePlay,
+        builder: (context, state) {
+          final gameId = state.pathParameters['gameId'] ?? '';
+          switch (gameId) {
+            case 'jogo_da_velha':
+              return const TicTacToeView();
+            case 'damas':
+              return const CheckersView();
+            case 'memoria':
+              return const MemoryGameView();
+            case 'tetris':
+              return const TetrisView();
+            case 'block_blast':
+              return const BlockBlastView();
+            default:
+              return const CasualGamesHubView();
           }
         },
       ),
@@ -180,6 +226,7 @@ class StudentShell extends StatelessWidget {
   int _selectedIndex(String location) {
     if (location.startsWith(AppRoutes.studentGameSelect)) return 1;
     if (location.startsWith(AppRoutes.studentRanking)) return 2;
+    if (location.startsWith(AppRoutes.studentCasualGames)) return 3;
     return 0;
   }
 
@@ -204,6 +251,7 @@ class StudentShell extends StatelessWidget {
               case 0: context.go(AppRoutes.studentHome);
               case 1: context.go(AppRoutes.studentGameSelect);
               case 2: context.go(AppRoutes.studentRanking);
+              case 3: context.go(AppRoutes.studentCasualGames);
             }
           },
           destinations: const [
@@ -221,6 +269,11 @@ class StudentShell extends StatelessWidget {
               icon: Icon(Icons.leaderboard_outlined, color: Color(0xFF89B4FA)),
               selectedIcon: Icon(Icons.leaderboard, color: Color(0xFFB45AF2)),
               label: 'Ranking',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.extension_outlined, color: Color(0xFF89B4FA)),
+              selectedIcon: Icon(Icons.extension, color: Color(0xFFB45AF2)),
+              label: 'Diversão',
             ),
           ],
         ),

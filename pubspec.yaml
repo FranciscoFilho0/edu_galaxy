@@ -16,6 +16,9 @@ dependencies:
   provider: ^6.1.2
   cupertino_icons: ^1.0.6
   cloud_firestore: 6.6.0
+  shared_preferences: ^2.5.5
+  pdf: ^3.11.1
+  printing: ^5.13.3
 
 dev_dependencies:
   flutter_test:

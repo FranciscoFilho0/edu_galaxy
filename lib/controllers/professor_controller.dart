@@ -83,6 +83,47 @@ class ProfessorController extends ChangeNotifier {
     }
   }
 
+  /// Renomeia um aluno já cadastrado. Atualiza o banco e a lista local
+  /// (inclusive o studentName guardado nos resultados antigos, só na
+  /// exibição — o histórico no banco mantém o nome de quando o jogo foi
+  /// jogado).
+  Future<bool> updateStudentName(String studentId, String newName) async {
+    final name = newName.trim();
+    if (_room == null || name.isEmpty) return false;
+
+    try {
+      await _db.updateStudentName(
+        professorId: _room!.professorId,
+        studentId: studentId,
+        name: name,
+      );
+      _students = _students
+          .map((s) => s.id == studentId ? s.copyWith(name: name) : s)
+          .toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao renomear aluno: $e');
+      return false;
+    }
+  }
+
+  /// Exclui o aluno e seus resultados, e atualiza as listas locais.
+  Future<bool> deleteStudent(String studentId) async {
+    if (_room == null) return false;
+
+    try {
+      await _db.deleteStudent(professorId: _room!.professorId, studentId: studentId);
+      _students = _students.where((s) => s.id != studentId).toList();
+      _results = _results.where((r) => r.studentId != studentId).toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao excluir aluno: $e');
+      return false;
+    }
+  }
+
   Future<void> toggleGameActive(String gameId) async {
     if (_room == null) return;
     final game = _games.firstWhere((g) => g.id == gameId);

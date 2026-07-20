@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/professor_controller.dart';
 import '../../models/student_model.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/router/app_routes.dart';
 
 class ProfessorStudentsView extends StatelessWidget {
   const ProfessorStudentsView({super.key});
@@ -86,10 +88,16 @@ class ProfessorStudentsView extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: prof.students.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) => _StudentCard(
-                      student: prof.students[i],
-                      results: prof.getResultsForStudent(prof.students[i].id),
-                    ),
+                    itemBuilder: (context, i) {
+                      final student = prof.students[i];
+                      return _StudentCard(
+                        student: student,
+                        results: prof.getResultsForStudent(student.id),
+                        onTap: () => context.push(
+                          AppRoutes.professorStudentDetailPath(student.id),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -107,7 +115,8 @@ class ProfessorStudentsView extends StatelessWidget {
 class _StudentCard extends StatelessWidget {
   final StudentModel student;
   final List<dynamic> results;
-  const _StudentCard({required this.student, required this.results});
+  final VoidCallback onTap;
+  const _StudentCard({required this.student, required this.results, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -118,37 +127,42 @@ class _StudentCard extends StatelessWidget {
     final avatarIdx = int.tryParse(student.avatarIndex) ?? 0;
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: AppTheme.profPrimary.withOpacity(0.1),
-              child: Text(avatars[avatarIdx % avatars.length], style: const TextStyle(fontSize: 24)),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(student.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.gamepad_outlined, size: 13, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Text('${results.length} jogos', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                      const SizedBox(width: 12),
-                      const Icon(Icons.star_outline, size: 13, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Text('Média ${avgScore.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                    ],
-                  ),
-                ],
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: AppTheme.profPrimary.withOpacity(0.1),
+                child: Text(avatars[avatarIdx % avatars.length], style: const TextStyle(fontSize: 24)),
               ),
-            ),
-          ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(student.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.gamepad_outlined, size: 13, color: Colors.grey),
+                        const SizedBox(width: 4),
+                        Text('${results.length} jogos', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        const SizedBox(width: 12),
+                        const Icon(Icons.star_outline, size: 13, color: Colors.grey),
+                        const SizedBox(width: 4),
+                        Text('Média ${avgScore.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          ),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../models/student_model.dart';
 import '../services/firestore_service.dart';
@@ -10,9 +11,18 @@ class AuthController extends ChangeNotifier {
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirestoreService _db = FirestoreService.instance;
 
+  // Chaves usadas para salvar a sessão do ALUNO no armazenamento local do
+  // aparelho (o professor não precisa disso — o pacote firebase_auth já
+  // guarda a sessão dele sozinho, ver `tryAutoLogin` mais abaixo).
+  static const String _kStudentProfessorIdKey = 'session_student_professorId';
+  static const String _kStudentIdKey = 'session_student_id';
+
   UserModel? _currentUser;
   StudentModel? _currentStudent;
   bool _isLoading = false;
+  // Fica true só durante a checagem inicial (tryAutoLogin), enquanto a
+  // splash screen decide para onde mandar o usuário.
+  bool _isRestoringSession = true;
   String? _errorMessage;
 
   // Dados temporários guardados entre a tela de "código da turma" e a tela
@@ -29,6 +39,7 @@ class AuthController extends ChangeNotifier {
   UserModel? get currentUser => _currentUser;
   StudentModel? get currentStudent => _currentStudent;
   bool get isLoading => _isLoading;
+  bool get isRestoringSession => _isRestoringSession;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _currentUser != null || _currentStudent != null;
   bool get isProfessor => _currentUser?.role == UserRole.professor;
@@ -37,6 +48,78 @@ class AuthController extends ChangeNotifier {
   String? get pendingProfessorName => _pendingProfessorName;
   String? get pendingRoomCode => _pendingRoomCode;
   List<StudentModel> get pendingRoomStudents => _pendingRoomStudents;
+
+  // ── Restaurar sessão salva (chamado uma vez, na splash screen) ──────────
+  /// O professor não precisa de nada especial aqui: o pacote firebase_auth
+  /// JÁ mantém o login salvo sozinho entre uma abertura e outra do app
+  /// (isso se chama "persistência", e é o comportamento padrão dele). Então
+  /// só perguntamos pra ele "quem está logado agora?".
+  ///
+  /// Já o aluno não tem conta de e-mail/senha — ele "loga" digitando o
+  /// código da sala e o nome. Não existe nada pronto que lembre disso
+  /// sozinho, então SOMOS NÓS que salvamos o id do professor + id do aluno
+  /// no armazenamento local (SharedPreferences) quando ele entra, e
+  /// buscamos de novo aqui.
+  Future<void> tryAutoLogin() async {
+    _isRestoringSession = true;
+    notifyListeners();
+
+    try {
+      final fbUser = _auth.currentUser;
+
+      // Caso 1: existe um usuário do Firebase Auth logado e NÃO é anônimo
+      // (login anônimo é só o "truque técnico" usado pelo aluno para poder
+      // ler o Firestore — não conta como professor logado).
+      if (fbUser != null && !fbUser.isAnonymous) {
+        _currentUser = UserModel(
+          id: fbUser.uid,
+          name: fbUser.displayName ?? _nameFromEmail(fbUser.email ?? ''),
+          email: fbUser.email ?? '',
+          role: UserRole.professor,
+        );
+        await _db.getOrCreateRoom(professorId: fbUser.uid, professorName: _currentUser!.name);
+        _isRestoringSession = false;
+        notifyListeners();
+        return;
+      }
+
+      // Caso 2: procura uma sessão de aluno salva localmente.
+      final prefs = await SharedPreferences.getInstance();
+      final savedProfessorId = prefs.getString(_kStudentProfessorIdKey);
+      final savedStudentId = prefs.getString(_kStudentIdKey);
+
+      if (savedProfessorId != null && savedStudentId != null) {
+        // Garante o login anônimo de novo, caso o app tenha sido reaberto
+        // sem nenhuma sessão do Firebase Auth ativa (ex: cache limpo).
+        if (_auth.currentUser == null) {
+          await _auth.signInAnonymously();
+        }
+
+        final students = await _db.fetchStudents(savedProfessorId);
+        StudentModel? match;
+        for (final s in students) {
+          if (s.id == savedStudentId) {
+            match = s;
+            break;
+          }
+        }
+
+        if (match != null) {
+          _currentStudent = match;
+        } else {
+          // O professor pode ter removido o aluno da turma nesse meio
+          // tempo — nesse caso não faz sentido manter a sessão salva.
+          await prefs.remove(_kStudentProfessorIdKey);
+          await prefs.remove(_kStudentIdKey);
+        }
+      }
+    } catch (e) {
+      debugPrint('Erro ao restaurar sessão: $e');
+    }
+
+    _isRestoringSession = false;
+    notifyListeners();
+  }
 
   // ── Login com e-mail e senha ─────────────────────────────────────────────
   Future<bool> loginProfessor(String email, String password) async {
@@ -318,6 +401,13 @@ class AuthController extends ChangeNotifier {
         avatarIndex: avatarIndex,
       );
       _currentStudent = match.copyWith(avatarIndex: avatarIndex);
+
+      // Salva localmente para o próximo tryAutoLogin() reconhecer esse
+      // aluno sem precisar pedir o código da sala e o nome de novo.
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kStudentProfessorIdKey, _pendingProfessorId!);
+      await prefs.setString(_kStudentIdKey, match.id);
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -333,6 +423,14 @@ class AuthController extends ChangeNotifier {
   Future<void> logout() async {
     await _auth.signOut();
     await _googleSignIn.signOut();
+
+    // Apaga a sessão de aluno salva localmente — é isso que garante que
+    // "sair" (logout) realmente exige login de novo, diferente de só
+    // fechar o app.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kStudentProfessorIdKey);
+    await prefs.remove(_kStudentIdKey);
+
     _currentUser = null;
     _currentStudent = null;
     _pendingProfessorId = null;
