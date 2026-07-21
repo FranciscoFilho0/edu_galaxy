@@ -13,21 +13,49 @@ class ProfessorResultsView extends StatefulWidget {
 
 class _ProfessorResultsViewState extends State<ProfessorResultsView> {
   String _selectedSubject = 'Todos';
+  // null = "Todos os meses". Quando definido, guarda o dia 1 do mês/ano escolhido.
+  DateTime? _selectedMonth;
+
+  static const _monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  ];
+
+  String _monthLabel(DateTime month) => '${_monthNames[month.month - 1]} ${month.year}';
 
   @override
   Widget build(BuildContext context) {
     final prof = context.watch<ProfessorController>();
     final subjects = ['Todos', ...{...prof.results.map((r) => r.subject)}];
-    final filtered = _selectedSubject == 'Todos'
+
+    // Meses em que existe pelo menos um resultado, do mais recente para o mais antigo.
+    final months = <DateTime>{
+      for (final r in prof.results) DateTime(r.playedAt.year, r.playedAt.month),
+    }.toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    // Se o mês selecionado não existir mais na lista (ex.: dados mudaram), volta para "Todos".
+    if (_selectedMonth != null && !months.contains(_selectedMonth)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _selectedMonth = null);
+      });
+    }
+
+    final bySubject = _selectedSubject == 'Todos'
         ? prof.results
         : prof.results.where((r) => r.subject == _selectedSubject).toList();
+
+    final filtered = _selectedMonth == null
+        ? bySubject
+        : bySubject.where((r) =>
+            r.playedAt.year == _selectedMonth!.year && r.playedAt.month == _selectedMonth!.month).toList();
 
     return Scaffold(
       backgroundColor: AppTheme.profBackground,
       appBar: AppBar(title: const Text('Resultados')),
       body: Column(
         children: [
-          // Filters
+          // Filters - Matéria
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -54,6 +82,55 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
               ),
             ),
           ),
+          // Filters - Mês
+          if (months.isNotEmpty)
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 10),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        avatar: Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: _selectedMonth == null ? AppTheme.profPrimary : Colors.grey.shade600,
+                        ),
+                        label: const Text('Todos os meses'),
+                        selected: _selectedMonth == null,
+                        onSelected: (_) => setState(() => _selectedMonth = null),
+                        selectedColor: AppTheme.profPrimary.withOpacity(0.15),
+                        checkmarkColor: AppTheme.profPrimary,
+                        labelStyle: TextStyle(
+                          color: _selectedMonth == null ? AppTheme.profPrimary : Colors.grey.shade700,
+                          fontWeight: _selectedMonth == null ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                    ...months.map((m) {
+                      final active = _selectedMonth == m;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text(_monthLabel(m)),
+                          selected: active,
+                          onSelected: (_) => setState(() => _selectedMonth = m),
+                          selectedColor: AppTheme.profPrimary.withOpacity(0.15),
+                          checkmarkColor: AppTheme.profPrimary,
+                          labelStyle: TextStyle(
+                            color: active ? AppTheme.profPrimary : Colors.grey.shade700,
+                            fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
           // Summary
           Padding(
             padding: const EdgeInsets.all(16),

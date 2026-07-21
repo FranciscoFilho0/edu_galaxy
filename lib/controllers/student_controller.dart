@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 import '../models/game_model.dart';
 import '../models/game_result_model.dart';
 import '../models/ranking_entry_model.dart';
+import '../models/achievement_model.dart';
 import '../services/firestore_service.dart';
+import 'achievements_engine.dart';
 
 class StudentController extends ChangeNotifier {
   final FirestoreService _db = FirestoreService.instance;
@@ -22,6 +24,11 @@ class StudentController extends ChangeNotifier {
   }
 
   int get gamesPlayed => _myResults.length;
+
+  /// Conquistas do aluno (desbloqueadas e em progresso), recalculadas a
+  /// partir dos resultados já carregados — não precisa de nenhuma consulta
+  /// extra ao banco de dados.
+  List<AchievementProgress> get achievements => AchievementsEngine.compute(_myResults);
 
   /// Carrega os jogos ativados pelo professor daquela sala e os resultados
   /// já registrados por este aluno específico.

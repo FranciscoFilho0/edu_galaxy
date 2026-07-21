@@ -3,7 +3,9 @@ class AppRoutes {
   static const String splash = '/splash';
 
   // Auth
-  static const String login = '/';
+  static const String login = '/'; // Tela de seleção: "Sou Professor" ou "Sou Aluno"
+  static const String professorLogin = '/professor/login';
+  static const String studentLogin = '/student/login';
   static const String studentRoomEntry = '/student/room';
   static const String studentProfileSetup = '/student/profile';
 
@@ -27,6 +29,7 @@ class AppRoutes {
   static const String studentGameSelect = '/student/games';
   static const String studentGamePlay = '/student/games/play/:gameId';
   static const String studentRanking = '/student/ranking';
+  static const String studentAchievements = '/student/achievements';
 
   // Jogos livres (não pedagógicos — sem professor, sem envio de resultado)
   static const String studentCasualGames = '/student/casual';

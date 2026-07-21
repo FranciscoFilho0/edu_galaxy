@@ -6,6 +6,8 @@ import '../../controllers/student_controller.dart';
 import '../../controllers/game_content_controller.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_theme.dart';
+import '../../models/achievement_model.dart';
+import 'widgets/achievement_badge.dart';
 
 class StudentHomeView extends StatefulWidget {
   const StudentHomeView({super.key});
@@ -168,6 +170,13 @@ class _StudentHomeViewState extends State<StudentHomeView> {
 
                       const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
+                      // Conquistas (preview)
+                      SliverToBoxAdapter(
+                        child: _AchievementsPreview(achievements: ctrl.achievements),
+                      ),
+
+                      const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
                       // Recent activity title
                       const SliverToBoxAdapter(
                         child: Padding(
@@ -273,6 +282,57 @@ class _MissionResultTile extends StatelessWidget {
           Text('$score/$total', style: const TextStyle(color: AppTheme.galaxyCyan, fontWeight: FontWeight.bold, fontSize: 16)),
         ],
       ),
+    );
+  }
+}
+
+class _AchievementsPreview extends StatelessWidget {
+  final List<AchievementProgress> achievements;
+  const _AchievementsPreview({required this.achievements});
+
+  @override
+  Widget build(BuildContext context) {
+    final unlockedCount = achievements.where((a) => a.unlocked).length;
+
+    // Mostra primeiro as desbloqueadas (pra comemorar) e depois as que
+    // faltam, até um total de 6 cards no preview da home.
+    final unlocked = achievements.where((a) => a.unlocked).toList();
+    final locked = achievements.where((a) => !a.unlocked).toList();
+    final preview = [...unlocked, ...locked].take(6).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              const Text('Conquistas 🏅', style: TextStyle(
+                color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold,
+              )),
+              const Spacer(),
+              TextButton(
+                onPressed: () => context.push(AppRoutes.studentAchievements),
+                child: Text(
+                  '$unlockedCount/${achievements.length} · Ver todas',
+                  style: const TextStyle(color: AppTheme.galaxyCyan, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 168,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: preview.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, i) => AchievementBadgeCard(progress: preview[i]),
+          ),
+        ),
+      ],
     );
   }
 }

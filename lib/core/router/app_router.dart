@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'app_routes.dart';
 import '../../views/auth/splash_view.dart';
 import '../../views/auth/login_view.dart';
+import '../../views/auth/professor_login_view.dart';
+import '../../views/auth/student_login_view.dart';
 import '../../views/auth/student_room_entry_view.dart';
 import '../../views/auth/student_profile_setup_view.dart';
 import '../../views/professor/professor_dashboard_view.dart';
@@ -16,6 +18,7 @@ import '../../views/professor/content_editors/math_config_editor_view.dart';
 import '../../views/student/student_home_view.dart';
 import '../../views/student/student_game_select_view.dart';
 import '../../views/student/student_ranking_view.dart';
+import '../../views/student/student_achievements_view.dart';
 import '../../views/games/game_placeholder_view.dart';
 import '../../views/games/calculos/calculos_game_view.dart';
 import '../../views/games/soletrar/soletrar_game_view.dart';
@@ -46,6 +49,14 @@ GoRouter createRouter() {
       GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const LoginView(),
+      ),
+      GoRoute(
+        path: AppRoutes.professorLogin,
+        builder: (context, state) => const ProfessorLoginView(),
+      ),
+      GoRoute(
+        path: AppRoutes.studentLogin,
+        builder: (context, state) => const StudentLoginView(),
       ),
       GoRoute(
         path: AppRoutes.studentRoomEntry,
@@ -128,6 +139,11 @@ GoRouter createRouter() {
               return GamePlaceholderView(gameId: gameId);
           }
         },
+      ),
+
+      GoRoute(
+        path: AppRoutes.studentAchievements,
+        builder: (context, state) => const StudentAchievementsView(),
       ),
 
       GoRoute(
