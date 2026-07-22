@@ -31,6 +31,7 @@ import '../../views/casual_games/checkers_view.dart';
 import '../../views/casual_games/memory_game_view.dart';
 import '../../views/casual_games/tetris_view.dart';
 import '../../views/casual_games/block_blast_view.dart';
+import '../../services/audio_service.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -124,20 +125,22 @@ GoRouter createRouter() {
         path: AppRoutes.studentGamePlay,
         builder: (context, state) {
           final gameId = state.pathParameters['gameId'] ?? '';
+          Widget game;
           switch (gameId) {
             case 'calculos':
-              return const CalculosGameView();
+              game = const CalculosGameView();
             case 'soletrar':
-              return const SoletrarGameView();
+              game = const SoletrarGameView();
             case 'forca':
-              return const ForcaGameView();
+              game = const ForcaGameView();
             case 'silabas':
-              return const SilabasGameView();
+              game = const SilabasGameView();
             case 'perguntas':
-              return const PerguntasGameView();
+              game = const PerguntasGameView();
             default:
-              return GamePlaceholderView(gameId: gameId);
+              game = GamePlaceholderView(gameId: gameId);
           }
+          return GameMusicScreen(child: game);
         },
       ),
 
@@ -152,15 +155,15 @@ GoRouter createRouter() {
           final gameId = state.pathParameters['gameId'] ?? '';
           switch (gameId) {
             case 'jogo_da_velha':
-              return const TicTacToeView();
+              return GameMusicScreen(child: const TicTacToeView());
             case 'damas':
-              return const CheckersView();
+              return GameMusicScreen(child: const CheckersView());
             case 'memoria':
-              return const MemoryGameView();
+              return GameMusicScreen(child: const MemoryGameView());
             case 'tetris':
-              return const TetrisView();
+              return GameMusicScreen(child: const TetrisView());
             case 'block_blast':
-              return const BlockBlastView();
+              return GameMusicScreen(child: const BlockBlastView());
             default:
               return const CasualGamesHubView();
           }
@@ -233,11 +236,33 @@ class ProfessorShell extends StatelessWidget {
 }
 
 // ── Student Shell (bottom navigation bar, galactic style) ────────────────────
-class StudentShell extends StatelessWidget {
+class StudentShell extends StatefulWidget {
   final Widget child;
   final GoRouterState state;
 
   const StudentShell({super.key, required this.child, required this.state});
+
+  @override
+  State<StudentShell> createState() => _StudentShellState();
+}
+
+class _StudentShellState extends State<StudentShell> {
+  @override
+  void initState() {
+    super.initState();
+    // Toca a música de fundo da área do aluno assim que ele entra
+    // (Base, Jogos, Ranking ou Diversão) e mantém tocando em loop
+    // enquanto ele navegar entre essas telas.
+    AudioService().playStudentHomeMusic();
+  }
+
+  @override
+  void dispose() {
+    // Ao sair da área do aluno (ex.: abrir um jogo ou fazer logout),
+    // paramos a música — a tela de jogo cuida da sua própria música.
+    AudioService().stop();
+    super.dispose();
+  }
 
   int _selectedIndex(String location) {
     if (location.startsWith(AppRoutes.studentGameSelect)) return 1;
@@ -248,11 +273,11 @@ class StudentShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final idx = _selectedIndex(state.uri.toString());
+    final idx = _selectedIndex(widget.state.uri.toString());
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E27),
-      body: child,
+      body: widget.child,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Color(0xFF1A1E3C),
@@ -296,4 +321,35 @@ class StudentShell extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Wrapper que toca a música de fundo dos jogos ─────────────────────────────
+//
+// Envolve cada tela de jogo (pedagógico ou casual). Ao montar, troca a
+// música para a faixa dos jogos; ao desmontar (aluno sai do jogo), para a
+// música — a tela para a qual ele voltar (StudentShell) liga a sua própria.
+class GameMusicScreen extends StatefulWidget {
+  final Widget child;
+
+  const GameMusicScreen({super.key, required this.child});
+
+  @override
+  State<GameMusicScreen> createState() => _GameMusicScreenState();
+}
+
+class _GameMusicScreenState extends State<GameMusicScreen> {
+  @override
+  void initState() {
+    super.initState();
+    AudioService().playGamesMusic();
+  }
+
+  @override
+  void dispose() {
+    AudioService().stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

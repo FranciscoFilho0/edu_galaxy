@@ -323,7 +323,7 @@ class _AchievementsPreview extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         SizedBox(
-          height: 168,
+          height: 178,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),

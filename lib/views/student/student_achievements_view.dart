@@ -51,7 +51,7 @@ class StudentAchievementsView extends StatelessWidget {
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: 0.8,
+                  childAspectRatio: 0.72,
                 ),
                 itemCount: achievements.length,
                 itemBuilder: (context, i) => AchievementBadgeCard(

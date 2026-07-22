@@ -19,6 +19,8 @@ dependencies:
   shared_preferences: ^2.5.5
   pdf: ^3.11.1
   printing: ^5.13.3
+  flutter_tts: ^4.2.0
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -28,6 +30,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/audio/fundo-inicial.mp3
+    - assets/audio/fundo-jogos.mp3
 
 flutter_launcher_icons:
   android: "launcher_icon"

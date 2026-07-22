@@ -40,6 +40,13 @@ class GameContentController extends ChangeNotifier {
   int _mathMaxNumber = 20;
   int get mathMaxNumber => _mathMaxNumber;
 
+  // ── Voz (TTS) dos jogos de palavras ────────────────────────────────────
+  // Quando true, Forca/Soletrar/Sílabas mostram o botão de alto-falante que
+  // lê a DICA (nunca a palavra) ao ser tocado. Quando false, nenhum som é
+  // reproduzido nesses jogos.
+  bool _ttsHintEnabled = true;
+  bool get ttsHintEnabled => _ttsHintEnabled;
+
   /// Carrega o conteúdo da sala do [professorId]. Se essa sala nunca teve
   /// conteúdo cadastrado (professor novo), semeia com o conteúdo de exemplo
   /// e já salva no banco, para o professor começar com algo pronto.
@@ -54,6 +61,7 @@ class GameContentController extends ChangeNotifier {
       var spelling = await _db.fetchWords(professorId, 'spellingWords');
       var syllables = await _db.fetchWords(professorId, 'syllableWords');
       final mathConfig = await _db.fetchMathConfig(professorId);
+      final wordGamesConfig = await _db.fetchWordGamesConfig(professorId);
 
       if (quiz.isEmpty && spelling.isEmpty && syllables.isEmpty && mathConfig == null) {
         await _seedDefaultContent(professorId);
@@ -77,6 +85,8 @@ class GameContentController extends ChangeNotifier {
         _mathMaxNumber = 20;
         await _db.saveMathConfig(professorId: professorId, operations: _enabledOperations, maxNumber: _mathMaxNumber);
       }
+
+      _ttsHintEnabled = wordGamesConfig?['ttsHintEnabled'] ?? true;
 
       _loadedForProfessorId = professorId;
     } catch (e) {
@@ -198,5 +208,12 @@ class GameContentController extends ChangeNotifier {
     _mathMaxNumber = value;
     notifyListeners();
     await _db.saveMathConfig(professorId: professorId, operations: _enabledOperations, maxNumber: _mathMaxNumber);
+  }
+
+  // ── Voz (TTS) dos jogos de palavras ────────────────────────────────────
+  Future<void> setTtsHintEnabled(String professorId, bool value) async {
+    _ttsHintEnabled = value;
+    notifyListeners();
+    await _db.saveWordGamesConfig(professorId: professorId, ttsHintEnabled: value);
   }
 }

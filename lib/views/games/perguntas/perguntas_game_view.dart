@@ -62,11 +62,21 @@ class _PerguntasGameViewState extends State<PerguntasGameView> {
     });
   }
 
+  Set<String> _unlockedBeforeIds = {};
+
   void _saveResult() {
     final auth = context.read<AuthController>();
     final student = auth.currentStudent;
     if (student == null) return;
-    context.read<StudentController>().saveResult(
+    final studentController = context.read<StudentController>();
+    // Snapshot de quais conquistas já estavam desbloqueadas ANTES desta
+    // partida ser salva — a tela de resultado usa isso pra saber quais são
+    // novas e mostrar o pop-up de conquista.
+    _unlockedBeforeIds = studentController.achievements
+        .where((a) => a.unlocked)
+        .map((a) => a.achievement.id)
+        .toSet();
+    studentController.saveResult(
           professorId: student.professorId,
           result: GameResultModel(
             id: '',
@@ -113,6 +123,7 @@ class _PerguntasGameViewState extends State<PerguntasGameView> {
         total: _questions.length,
         durationSeconds: DateTime.now().difference(_startTime).inSeconds,
         onPlayAgain: _restart,
+        previouslyUnlockedIds: _unlockedBeforeIds,
       );
     }
 

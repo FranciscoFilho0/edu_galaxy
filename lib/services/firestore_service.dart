@@ -27,6 +27,7 @@ import '../models/math_operation.dart';
 /// rooms/{professorId}/spellingWords/{id}      -> palavras do "Soletrar" / "Forca"
 /// rooms/{professorId}/syllableWords/{id}      -> palavras do "Quebra-Sílabas"
 /// rooms/{professorId}/settings/mathConfig     -> configuração do jogo de Cálculos
+/// rooms/{professorId}/settings/wordGamesConfig -> { ttsHintEnabled } (voz nos jogos de palavras)
 ///
 /// Como cada professor só lê/escreve dentro de rooms/{seuProprioId}/...,
 /// e o aluno só acessa a sala do professor que ele encontrou pelo código,
@@ -290,6 +291,24 @@ class FirestoreService {
     await _roomDoc(professorId).collection('settings').doc('mathConfig').set({
       'operations': operations.map((o) => o.name).toList(),
       'maxNumber': maxNumber,
+    });
+  }
+
+  // ── Conteúdo: Configuração de voz (TTS) dos jogos de palavras ──────────
+  // Controla se Forca, Soletrar e Sílabas podem falar a dica em voz alta
+  // (só quando o aluno aperta o botão de alto-falante; nunca a palavra).
+
+  Future<Map<String, dynamic>?> fetchWordGamesConfig(String professorId) async {
+    final doc = await _roomDoc(professorId).collection('settings').doc('wordGamesConfig').get();
+    return doc.exists ? doc.data() : null;
+  }
+
+  Future<void> saveWordGamesConfig({
+    required String professorId,
+    required bool ttsHintEnabled,
+  }) async {
+    await _roomDoc(professorId).collection('settings').doc('wordGamesConfig').set({
+      'ttsHintEnabled': ttsHintEnabled,
     });
   }
 }

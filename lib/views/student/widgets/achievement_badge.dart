@@ -36,29 +36,44 @@ class AchievementBadgeCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Opacity(
-            opacity: unlocked ? 1 : 0.35,
-            child: Text(achievement.emoji, style: const TextStyle(fontSize: 32)),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            achievement.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: unlocked ? Colors.white : Colors.white54,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
+          // O bloco de emoji/título/descrição fica dentro de um Expanded +
+          // SingleChildScrollView: se o card receber uma altura fixa e o
+          // texto (título/descrição em 2 linhas) não couber, ele encolhe
+          // ou clipa suavemente em vez de estourar o layout (o bug das
+          // listras amarelas/pretas de "overflow").
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Opacity(
+                    opacity: unlocked ? 1 : 0.35,
+                    child: Text(achievement.emoji, style: const TextStyle(fontSize: 32)),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    achievement.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: unlocked ? Colors.white : Colors.white54,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    achievement.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Color(0xFF89B4FA), fontSize: 10.5),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            achievement.description,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Color(0xFF89B4FA), fontSize: 10.5),
           ),
           const SizedBox(height: 10),
           ClipRRect(

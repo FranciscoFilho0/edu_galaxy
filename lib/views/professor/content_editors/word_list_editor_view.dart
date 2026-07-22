@@ -50,6 +50,42 @@ class WordListEditorView extends StatelessWidget {
               ],
             ),
           ),
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.profPrimary.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  content.ttsHintEnabled ? Icons.volume_up_outlined : Icons.volume_off_outlined,
+                  color: AppTheme.profPrimary,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Ler dica em voz alta', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text(
+                        'Mostra o botão de alto-falante nos jogos de palavras (Soletrar, Forca e Sílabas). Ele sempre lê apenas a dica, nunca a palavra, e só quando o aluno tocar o botão.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: content.ttsHintEnabled,
+                  onChanged: (value) => content.setTtsHintEnabled(professorId, value),
+                  activeColor: AppTheme.profPrimary,
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: words.isEmpty
                 ? const Center(child: Text('Nenhuma palavra cadastrada.', style: TextStyle(color: Colors.grey)))

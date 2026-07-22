@@ -8,6 +8,8 @@ import '../../../models/game_result_model.dart';
 import '../../../core/theme/app_theme.dart';
 import '../shared/game_top_bar.dart';
 import '../shared/game_result_screen.dart';
+import '../shared/speak_button.dart';
+import '../../../services/tts_service.dart';
 
 class ForcaGameView extends StatefulWidget {
   const ForcaGameView({super.key});
@@ -40,6 +42,12 @@ class _ForcaGameViewState extends State<ForcaGameView> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadWords());
   }
 
+  @override
+  void dispose() {
+    TtsService.instance.stop();
+    super.dispose();
+  }
+
   void _loadWords() {
     final content = context.read<GameContentController>();
     final list = [...content.spellingWords]..shuffle();
@@ -47,6 +55,15 @@ class _ForcaGameViewState extends State<ForcaGameView> {
       _words = list.take(6).toList();
       _setupRound();
     });
+    _speakCurrentHint();
+  }
+
+  /// Fala apenas a DICA da rodada atual — nunca a palavra, pois isso
+  /// entregaria a resposta do jogo. Respeita a configuração do professor.
+  void _speakCurrentHint() {
+    if (_words.isEmpty) return;
+    if (!context.read<GameContentController>().ttsHintEnabled) return;
+    TtsService.instance.speak(_words[_currentIndex].hint);
   }
 
   void _setupRound() {
@@ -85,6 +102,7 @@ class _ForcaGameViewState extends State<ForcaGameView> {
             _currentIndex++;
             _setupRound();
           });
+          _speakCurrentHint();
         } else {
           setState(() => _isFinished = true);
           _saveResult();
@@ -93,11 +111,21 @@ class _ForcaGameViewState extends State<ForcaGameView> {
     }
   }
 
+  Set<String> _unlockedBeforeIds = {};
+
   void _saveResult() {
     final auth = context.read<AuthController>();
     final student = auth.currentStudent;
     if (student == null) return;
-    context.read<StudentController>().saveResult(
+    final studentController = context.read<StudentController>();
+    // Snapshot de quais conquistas já estavam desbloqueadas ANTES desta
+    // partida ser salva — a tela de resultado usa isso pra saber quais são
+    // novas e mostrar o pop-up de conquista.
+    _unlockedBeforeIds = studentController.achievements
+        .where((a) => a.unlocked)
+        .map((a) => a.achievement.id)
+        .toSet();
+    studentController.saveResult(
           professorId: student.professorId,
           result: GameResultModel(
             id: '',
@@ -142,6 +170,7 @@ class _ForcaGameViewState extends State<ForcaGameView> {
         total: _words.length,
         durationSeconds: DateTime.now().difference(_startTime).inSeconds,
         onPlayAgain: _restart,
+        previouslyUnlockedIds: _unlockedBeforeIds,
       );
     }
 
@@ -173,6 +202,9 @@ class _ForcaGameViewState extends State<ForcaGameView> {
                   const Text('💡', style: TextStyle(fontSize: 20)),
                   const SizedBox(width: 10),
                   Expanded(child: Text(word.hint, style: const TextStyle(color: Colors.white, fontSize: 13))),
+                  const SizedBox(width: 6),
+                  if (content.ttsHintEnabled) SpeakButton(textToSpeak: word.hint, size: 18),
+                  const SizedBox(width: 10),
                   Text('${maxMistakes - _mistakes} ❤️', style: const TextStyle(color: AppTheme.galaxyPink, fontWeight: FontWeight.bold)),
                 ],
               ),

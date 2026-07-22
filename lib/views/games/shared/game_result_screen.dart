@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../controllers/student_controller.dart';
+import '../../../models/achievement_model.dart';
+import '../../student/widgets/achievement_popup_dialog.dart';
 
-class GameResultScreen extends StatelessWidget {
+class GameResultScreen extends StatefulWidget {
   final String gameEmoji;
   final String gameTitle;
   final int score;
   final int total;
   final int durationSeconds;
   final VoidCallback onPlayAgain;
+
+  /// IDs das conquistas que já estavam desbloqueadas *antes* desta partida
+  /// ser salva. É comparando com isso que a tela descobre quais conquistas
+  /// são novas e merecem um pop-up — cada jogo captura esse snapshot logo
+  /// antes de chamar `StudentController.saveResult()`.
+  final Set<String> previouslyUnlockedIds;
 
   const GameResultScreen({
     super.key,
@@ -19,14 +29,86 @@ class GameResultScreen extends StatelessWidget {
     required this.total,
     required this.durationSeconds,
     required this.onPlayAgain,
+    this.previouslyUnlockedIds = const {},
   });
 
   @override
+  State<GameResultScreen> createState() => _GameResultScreenState();
+}
+
+class _GameResultScreenState extends State<GameResultScreen> {
+  // Conquistas que ainda precisam ter o pop-up exibido, e um controle para
+  // não abrir vários pop-ups sobrepostos ao mesmo tempo.
+  final List<AchievementModel> _pendingPopups = [];
+  final Set<String> _alreadyQueuedIds = {};
+  bool _isShowingPopup = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // O resultado da partida é salvo de forma assíncrona (Firestore), então
+    // a conquista pode ainda não estar calculada no exato momento em que
+    // esta tela aparece. Em vez de checar uma única vez, escutamos o
+    // StudentController: assim que `saveResult()` terminar e notificar os
+    // listeners, `_checkForNewAchievements` roda de novo automaticamente.
+    context.read<StudentController>().addListener(_checkForNewAchievements);
+
+    // Ainda assim, fazemos uma checagem imediata após o primeiro frame,
+    // cobrindo o caso em que o salvamento já tinha terminado antes mesmo
+    // desta tela ser montada.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForNewAchievements());
+  }
+
+  @override
+  void dispose() {
+    context.read<StudentController>().removeListener(_checkForNewAchievements);
+    super.dispose();
+  }
+
+  void _checkForNewAchievements() {
+    if (!mounted) return;
+
+    final achievements = context.read<StudentController>().achievements;
+    final newlyUnlocked = achievements.where((a) =>
+        a.unlocked &&
+        !widget.previouslyUnlockedIds.contains(a.achievement.id) &&
+        !_alreadyQueuedIds.contains(a.achievement.id));
+
+    if (newlyUnlocked.isEmpty) return;
+
+    setState(() {
+      for (final progress in newlyUnlocked) {
+        _alreadyQueuedIds.add(progress.achievement.id);
+        _pendingPopups.add(progress.achievement);
+      }
+    });
+
+    _showNextPopupIfNeeded();
+  }
+
+  Future<void> _showNextPopupIfNeeded() async {
+    if (_isShowingPopup || _pendingPopups.isEmpty || !mounted) return;
+
+    _isShowingPopup = true;
+    final achievement = _pendingPopups.removeAt(0);
+
+    await AchievementPopupDialog.show(context, achievement);
+
+    _isShowingPopup = false;
+    if (mounted && _pendingPopups.isNotEmpty) {
+      _showNextPopupIfNeeded();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final score = widget.score;
+    final total = widget.total;
     final pct = total > 0 ? (score / total * 100).round() : 0;
     final stars = total > 0 ? (score / total * 3).round().clamp(0, 3) : 0;
-    final mins = durationSeconds ~/ 60;
-    final secs = durationSeconds % 60;
+    final mins = widget.durationSeconds ~/ 60;
+    final secs = widget.durationSeconds % 60;
 
     final String message;
     final String emoji;
@@ -56,7 +138,7 @@ class GameResultScreen extends StatelessWidget {
                 color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold,
               )),
               const SizedBox(height: 4),
-              Text(gameTitle, style: const TextStyle(color: AppTheme.galaxyCyan, fontSize: 14)),
+              Text(widget.gameTitle, style: const TextStyle(color: AppTheme.galaxyCyan, fontSize: 14)),
               const SizedBox(height: 28),
               // Stars
               Row(
@@ -95,7 +177,7 @@ class GameResultScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton.icon(
-                  onPressed: onPlayAgain,
+                  onPressed: widget.onPlayAgain,
                   icon: const Icon(Icons.replay),
                   label: const Text('Jogar Novamente', style: TextStyle(fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
