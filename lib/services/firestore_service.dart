@@ -233,6 +233,25 @@ class FirestoreService {
     await ref.set(withId.toMap());
   }
 
+  /// Apaga todo o histórico de resultados de um aluno, sem excluir o
+  /// cadastro dele — usado quando o professor só quer "zerar" o desempenho
+  /// registrado (ex.: início de um novo bimestre) e manter o aluno na turma.
+  Future<void> deleteResultsForStudent({
+    required String professorId,
+    required String studentId,
+  }) async {
+    final resultsSnap = await _roomDoc(professorId)
+        .collection('results')
+        .where('studentId', isEqualTo: studentId)
+        .get();
+
+    final batch = _db.batch();
+    for (final doc in resultsSnap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
   // ── Jogos ativos/inativos ───────────────────────────────────────────────
 
   /// Retorna um mapa {gameId: isActive}. Jogos que nunca foram configurados

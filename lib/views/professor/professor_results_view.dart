@@ -5,6 +5,7 @@ import '../../controllers/professor_controller.dart';
 import '../../models/game_result_model.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/router/app_routes.dart';
+import '../../core/constants/subjects.dart';
 
 class ProfessorResultsView extends StatefulWidget {
   const ProfessorResultsView({super.key});
@@ -28,7 +29,13 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
   @override
   Widget build(BuildContext context) {
     final prof = context.watch<ProfessorController>();
-    final subjects = ['Todos', ...{...prof.results.map((r) => r.subject)}];
+    // Sempre mostra todas as matérias cadastradas, mesmo as que ainda não têm
+    // nenhum resultado — senão a matéria só aparece no filtro depois que
+    // algum aluno jogar algo daquela matéria. Também mantém, ao final, alguma
+    // matéria "legada" que porventura exista nos dados antigos e não esteja
+    // mais na lista fixa.
+    final legacySubjects = prof.results.map((r) => r.subject).where((s) => !AppSubjects.all.contains(s));
+    final subjects = ['Todos', ...AppSubjects.all, ...{...legacySubjects}];
 
     // Meses em que existe pelo menos um resultado, do mais recente para o mais antigo.
     final months = <DateTime>{
@@ -272,18 +279,65 @@ class _StudentGroupCard extends StatelessWidget {
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () => context.push(AppRoutes.professorStudentDetailPath(studentId)),
-                  icon: const Icon(Icons.person_outline, size: 18),
-                  label: const Text('Ver perfil completo'),
-                  style: TextButton.styleFrom(foregroundColor: AppTheme.profPrimary),
-                ),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _confirmClearHistory(context, studentId, studentName),
+                    icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+                    label: const Text('Limpar histórico'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.profError,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => context.push(AppRoutes.professorStudentDetailPath(studentId)),
+                    icon: const Icon(Icons.person_outline, size: 18),
+                    label: const Text('Ver perfil completo'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.profPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmClearHistory(BuildContext context, String studentId, String studentName) {
+    final prof = context.read<ProfessorController>();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Limpar histórico', style: TextStyle(color: AppTheme.profError, fontWeight: FontWeight.w700)),
+        content: Text(
+          'Tem certeza que deseja apagar todo o histórico de resultados de "$studentName"? '
+          'O aluno continua cadastrado na turma, só o desempenho registrado será apagado. '
+          'Essa ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.profError),
+            onPressed: () async {
+              final ok = await prof.clearStudentResults(studentId);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (context.mounted && !ok) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Não foi possível limpar o histórico.')),
+                );
+              }
+            },
+            child: const Text('Limpar'),
+          ),
+        ],
       ),
     );
   }

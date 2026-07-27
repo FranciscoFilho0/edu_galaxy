@@ -5,6 +5,8 @@ import '../../../controllers/game_content_controller.dart';
 import '../../../controllers/auth_controller.dart';
 import '../../../models/quiz_question_model.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/constants/subjects.dart';
+import '../widgets/subject_picker_field.dart';
 
 class QuizEditorView extends StatelessWidget {
   const QuizEditorView({super.key});
@@ -48,7 +50,7 @@ class QuizEditorView extends StatelessWidget {
     final content = context.read<GameContentController>();
     final professorId = context.read<AuthController>().currentUser?.id ?? '';
     final questionCtrl = TextEditingController(text: existing?.question ?? '');
-    final subjectCtrl = TextEditingController(text: existing?.subject ?? '');
+    String subject = existing?.subject ?? AppSubjects.all.first;
     final optionCtrls = List.generate(4, (i) =>
         TextEditingController(text: existing != null && i < existing.options.length ? existing.options[i] : ''));
     int correctIndex = existing?.correctIndex ?? 0;
@@ -65,9 +67,9 @@ class QuizEditorView extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: subjectCtrl,
-                    decoration: const InputDecoration(labelText: 'Matéria', prefixIcon: Icon(Icons.subject)),
+                  SubjectPickerField(
+                    value: subject,
+                    onChanged: (v) => setDialogState(() => subject = v),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -118,7 +120,7 @@ class QuizEditorView extends StatelessWidget {
                 final newQ = QuizQuestionModel(
                   id: existing?.id ?? 'q_${DateTime.now().millisecondsSinceEpoch}',
                   question: questionCtrl.text.trim(),
-                  subject: subjectCtrl.text.trim().isEmpty ? 'Geral' : subjectCtrl.text.trim(),
+                  subject: subject,
                   options: optionCtrls.map((c) => c.text.trim()).toList(),
                   correctIndex: correctIndex,
                 );

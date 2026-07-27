@@ -5,6 +5,8 @@ import '../../../controllers/game_content_controller.dart';
 import '../../../controllers/auth_controller.dart';
 import '../../../models/word_entry_model.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/constants/subjects.dart';
+import '../widgets/subject_picker_field.dart';
 
 enum WordListType { spelling, syllables }
 
@@ -122,66 +124,68 @@ class WordListEditorView extends StatelessWidget {
     final professorId = context.read<AuthController>().currentUser?.id ?? '';
     final wordCtrl = TextEditingController(text: existing?.word ?? '');
     final hintCtrl = TextEditingController(text: existing?.hint ?? '');
-    final subjectCtrl = TextEditingController(text: existing?.subject ?? '');
+    String subject = existing?.subject ?? AppSubjects.all.first;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(existing == null ? 'Nova Palavra' : 'Editar Palavra',
-            style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.w700)),
-        content: SizedBox(
-          width: 380,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: wordCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(labelText: 'Palavra', prefixIcon: Icon(Icons.text_fields)),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: hintCtrl,
-                decoration: const InputDecoration(labelText: 'Dica', prefixIcon: Icon(Icons.lightbulb_outline)),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: subjectCtrl,
-                decoration: const InputDecoration(labelText: 'Matéria', prefixIcon: Icon(Icons.subject)),
-              ),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(existing == null ? 'Nova Palavra' : 'Editar Palavra',
+              style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.w700)),
+          content: SizedBox(
+            width: 380,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: wordCtrl,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(labelText: 'Palavra', prefixIcon: Icon(Icons.text_fields)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: hintCtrl,
+                  decoration: const InputDecoration(labelText: 'Dica', prefixIcon: Icon(Icons.lightbulb_outline)),
+                ),
+                const SizedBox(height: 12),
+                SubjectPickerField(
+                  value: subject,
+                  onChanged: (v) => setDialogState(() => subject = v),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () {
-              if (wordCtrl.text.trim().isEmpty || hintCtrl.text.trim().isEmpty) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(content: Text('Preencha palavra e dica.'), backgroundColor: AppTheme.profError),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () {
+                if (wordCtrl.text.trim().isEmpty || hintCtrl.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Preencha palavra e dica.'), backgroundColor: AppTheme.profError),
+                  );
+                  return;
+                }
+                final newWord = WordEntryModel(
+                  id: existing?.id ?? 'w_${DateTime.now().millisecondsSinceEpoch}',
+                  word: wordCtrl.text.trim().toUpperCase(),
+                  hint: hintCtrl.text.trim(),
+                  subject: subject,
                 );
-                return;
-              }
-              final newWord = WordEntryModel(
-                id: existing?.id ?? 'w_${DateTime.now().millisecondsSinceEpoch}',
-                word: wordCtrl.text.trim().toUpperCase(),
-                hint: hintCtrl.text.trim(),
-                subject: subjectCtrl.text.trim().isEmpty ? 'Geral' : subjectCtrl.text.trim(),
-              );
-              if (type == WordListType.spelling) {
-                existing == null
-                    ? content.addSpellingWord(professorId, newWord)
-                    : content.updateSpellingWord(professorId, newWord);
-              } else {
-                existing == null
-                    ? content.addSyllableWord(professorId, newWord)
-                    : content.updateSyllableWord(professorId, newWord);
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('Salvar'),
-          ),
-        ],
+                if (type == WordListType.spelling) {
+                  existing == null
+                      ? content.addSpellingWord(professorId, newWord)
+                      : content.updateSpellingWord(professorId, newWord);
+                } else {
+                  existing == null
+                      ? content.addSyllableWord(professorId, newWord)
+                      : content.updateSyllableWord(professorId, newWord);
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
+        ),
       ),
     );
   }

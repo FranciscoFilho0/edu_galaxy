@@ -164,6 +164,23 @@ class ProfessorController extends ChangeNotifier {
     return _results.where((r) => r.studentId == studentId).toList();
   }
 
+  /// Apaga o histórico de resultados de um aluno, mantendo o cadastro dele.
+  /// Útil para o professor "zerar" o desempenho registrado sem precisar
+  /// excluir o aluno da turma.
+  Future<bool> clearStudentResults(String studentId) async {
+    if (_room == null) return false;
+
+    try {
+      await _db.deleteResultsForStudent(professorId: _room!.professorId, studentId: studentId);
+      _results = _results.where((r) => r.studentId != studentId).toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao limpar histórico do aluno: $e');
+      return false;
+    }
+  }
+
   double get averageScore {
     if (_results.isEmpty) return 0;
     return _results.map((r) => r.percentage).reduce((a, b) => a + b) / _results.length;

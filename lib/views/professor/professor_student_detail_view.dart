@@ -51,6 +51,38 @@ class ProfessorStudentDetailView extends StatelessWidget {
     );
   }
 
+  void _showClearHistoryDialog(BuildContext context, StudentModel student) {
+    final professorCtrl = context.read<ProfessorController>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Limpar histórico', style: TextStyle(color: AppTheme.profError, fontWeight: FontWeight.w700)),
+        content: Text(
+          'Tem certeza que deseja apagar todo o histórico de resultados de "${student.name}"? '
+          'O aluno continua cadastrado na turma, só o desempenho registrado será apagado. '
+          'Essa ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.profError),
+            onPressed: () async {
+              final ok = await professorCtrl.clearStudentResults(student.id);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (context.mounted && !ok) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Não foi possível limpar o histórico.')),
+                );
+              }
+            },
+            child: const Text('Limpar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showDeleteConfirmDialog(BuildContext context, StudentModel student) {
     final professorCtrl = context.read<ProfessorController>();
 
@@ -140,6 +172,11 @@ class ProfessorStudentDetailView extends StatelessWidget {
             tooltip: 'Editar nome',
             icon: const Icon(Icons.edit_outlined),
             onPressed: () => _showEditNameDialog(context, student!),
+          ),
+          IconButton(
+            tooltip: 'Limpar histórico',
+            icon: const Icon(Icons.delete_sweep_outlined),
+            onPressed: () => _showClearHistoryDialog(context, student!),
           ),
           IconButton(
             tooltip: 'Excluir aluno',
