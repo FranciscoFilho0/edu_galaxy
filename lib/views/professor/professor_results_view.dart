@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/professor_controller.dart';
 import '../../models/game_result_model.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/router/app_routes.dart';
 
 class ProfessorResultsView extends StatefulWidget {
   const ProfessorResultsView({super.key});
@@ -50,12 +52,24 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
         : bySubject.where((r) =>
             r.playedAt.year == _selectedMonth!.year && r.playedAt.month == _selectedMonth!.month).toList();
 
+    // Agrupa os resultados filtrados por aluno, para não misturar todas as
+    // partidas de todos os alunos numa lista só. Cada aluno vira um card
+    // (com média e nº de jogos) que expande para mostrar o histórico.
+    final byStudent = <String, List<GameResultModel>>{};
+    for (final r in filtered) {
+      byStudent.putIfAbsent(r.studentId, () => []).add(r);
+    }
+    for (final list in byStudent.values) {
+      list.sort((a, b) => b.playedAt.compareTo(a.playedAt)); // mais recente primeiro
+    }
+    final studentGroups = byStudent.values.toList()
+      ..sort((a, b) => b.first.playedAt.compareTo(a.first.playedAt)); // aluno mais ativo recentemente no topo
+
     return Scaffold(
       backgroundColor: AppTheme.profBackground,
       appBar: AppBar(title: const Text('Resultados')),
       body: Column(
         children: [
-          // Filters - Matéria
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -82,7 +96,6 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
               ),
             ),
           ),
-          // Filters - Mês
           if (months.isNotEmpty)
             Container(
               color: Colors.white,
@@ -131,12 +144,13 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
                 ),
               ),
             ),
-          // Summary
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                _SummaryChip(label: '${filtered.length} registros', icon: Icons.list),
+                _SummaryChip(label: '${studentGroups.length} alunos', icon: Icons.groups_outlined),
+                const SizedBox(width: 8),
+                _SummaryChip(label: '${filtered.length} jogos', icon: Icons.list),
                 const SizedBox(width: 8),
                 _SummaryChip(
                   label: 'Média: ${filtered.isEmpty ? 0 : (filtered.map((r) => r.percentage).reduce((a, b) => a + b) / filtered.length).toStringAsFixed(0)}%',
@@ -145,17 +159,16 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
               ],
             ),
           ),
-          // List
           Expanded(
             child: prof.isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : filtered.isEmpty
+                : studentGroups.isEmpty
                     ? const Center(child: Text('Nenhum resultado encontrado.', style: TextStyle(color: Colors.grey)))
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: filtered.length,
+                        itemCount: studentGroups.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (context, i) => _ResultCard(result: filtered[i]),
+                        itemBuilder: (context, i) => _StudentGroupCard(results: studentGroups[i]),
                       ),
           ),
         ],
@@ -189,9 +202,97 @@ class _SummaryChip extends StatelessWidget {
   }
 }
 
-class _ResultCard extends StatelessWidget {
+/// Card compacto de um aluno: mostra o nome, quantos jogos ele tem e a média
+/// geral. Ao tocar, expande e revela o histórico recente de partidas, com
+/// atalho para o perfil completo do aluno (histórico total + exportar PDF).
+class _StudentGroupCard extends StatelessWidget {
+  final List<GameResultModel> results; // já ordenado do mais recente pro mais antigo
+  static const _maxPreview = 5;
+
+  const _StudentGroupCard({required this.results});
+
+  @override
+  Widget build(BuildContext context) {
+    final first = results.first;
+    final studentId = first.studentId;
+    final studentName = first.studentName;
+    final avg = results.map((r) => r.percentage).reduce((a, b) => a + b) / results.length;
+    final pct = avg.round();
+    final color = pct >= 70 ? AppTheme.profSuccess : pct >= 50 ? AppTheme.profWarning : AppTheme.profError;
+    final lastDate = first.playedAt;
+    final dateStr = '${lastDate.day.toString().padLeft(2, '0')}/${lastDate.month.toString().padLeft(2, '0')}/${lastDate.year}';
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          key: PageStorageKey('student_group_$studentId'),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.only(bottom: 8),
+          leading: CircleAvatar(
+            radius: 22,
+            backgroundColor: AppTheme.profPrimary.withOpacity(0.1),
+            child: Text(
+              studentName.isNotEmpty ? studentName[0].toUpperCase() : '?',
+              style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ),
+          title: Text(studentName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+          subtitle: Text(
+            '${results.length} jogo${results.length == 1 ? '' : 's'} · último em $dateStr',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: color.withOpacity(0.3)),
+                ),
+                child: Text('$pct%', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.expand_more),
+            ],
+          ),
+          children: [
+            const Divider(height: 1),
+            ...results.take(_maxPreview).map((r) => _CompactResultRow(result: r)),
+            if (results.length > _maxPreview)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Text(
+                  'e mais ${results.length - _maxPreview} resultado${results.length - _maxPreview == 1 ? '' : 's'}...',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontStyle: FontStyle.italic),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => context.push(AppRoutes.professorStudentDetailPath(studentId)),
+                  icon: const Icon(Icons.person_outline, size: 18),
+                  label: const Text('Ver perfil completo'),
+                  style: TextButton.styleFrom(foregroundColor: AppTheme.profPrimary),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Linha compacta usada dentro do card expandido — uma partida por linha.
+class _CompactResultRow extends StatelessWidget {
   final GameResultModel result;
-  const _ResultCard({required this.result});
+  const _CompactResultRow({required this.result});
 
   @override
   Widget build(BuildContext context) {
@@ -199,56 +300,46 @@ class _ResultCard extends StatelessWidget {
     final color = pct >= 70 ? AppTheme.profSuccess : pct >= 50 ? AppTheme.profWarning : AppTheme.profError;
     final mins = result.durationSeconds ~/ 60;
     final secs = result.durationSeconds % 60;
+    final date = result.playedAt;
+    final dateStr = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            // Avatar
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: AppTheme.profPrimary.withOpacity(0.1),
-              child: Text(result.studentName[0], style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(result.studentName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                  const SizedBox(height: 2),
-                  Text(result.gameName, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      _InfoPill(text: result.subject, color: AppTheme.profSecondary),
-                      const SizedBox(width: 6),
-                      _InfoPill(text: '${mins}m ${secs}s', color: Colors.grey),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            // Score
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: color.withOpacity(0.3)),
-                  ),
-                  child: Text('$pct%', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(result.gameName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    _InfoPill(text: result.subject, color: AppTheme.profSecondary),
+                    const SizedBox(width: 6),
+                    Text('$dateStr · ${mins}m ${secs}s', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text('${result.score}/${result.totalQuestions}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
               ],
             ),
-          ],
-        ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: color.withOpacity(0.3)),
+                ),
+                child: Text('$pct%', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+              ),
+              const SizedBox(height: 2),
+              Text('${result.score}/${result.totalQuestions}', style: const TextStyle(color: Colors.grey, fontSize: 10)),
+            ],
+          ),
+        ],
       ),
     );
   }
