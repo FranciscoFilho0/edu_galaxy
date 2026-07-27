@@ -19,6 +19,8 @@ import '../../views/student/student_home_view.dart';
 import '../../views/student/student_game_select_view.dart';
 import '../../views/student/student_ranking_view.dart';
 import '../../views/student/student_achievements_view.dart';
+import '../../views/student/student_settings_view.dart';
+import '../../views/professor/professor_settings_view.dart';
 import '../../views/games/game_placeholder_view.dart';
 import '../../views/games/calculos/calculos_game_view.dart';
 import '../../views/games/soletrar/soletrar_game_view.dart';
@@ -98,6 +100,11 @@ GoRouter createRouter() {
         ],
       ),
 
+      GoRoute(
+        path: AppRoutes.professorSettings,
+        builder: (context, state) => const ProfessorSettingsView(),
+      ),
+
       // ── Student (ShellRoute for bottom nav) ──────────────────────────────
       ShellRoute(
         builder: (context, state, child) => StudentShell(child: child, state: state),
@@ -147,6 +154,11 @@ GoRouter createRouter() {
       GoRoute(
         path: AppRoutes.studentAchievements,
         builder: (context, state) => const StudentAchievementsView(),
+      ),
+
+      GoRoute(
+        path: AppRoutes.studentSettings,
+        builder: (context, state) => const StudentSettingsView(),
       ),
 
       GoRoute(

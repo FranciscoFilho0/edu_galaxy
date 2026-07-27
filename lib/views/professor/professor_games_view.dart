@@ -51,7 +51,7 @@ class ProfessorGamesView extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline, color: AppTheme.profSecondary, size: 20),
+                Icon(Icons.info_outline, color: AppTheme.profSecondary, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(

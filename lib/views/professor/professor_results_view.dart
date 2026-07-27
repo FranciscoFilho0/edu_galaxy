@@ -182,7 +182,7 @@ class _SummaryChip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: AppTheme.profPrimary),
           const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.profPrimary, fontWeight: FontWeight.w600)),
+          Text(label, style: TextStyle(fontSize: 12, color: AppTheme.profPrimary, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -209,7 +209,7 @@ class _ResultCard extends StatelessWidget {
             CircleAvatar(
               radius: 22,
               backgroundColor: AppTheme.profPrimary.withOpacity(0.1),
-              child: Text(result.studentName[0], style: const TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
+              child: Text(result.studentName[0], style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
             ),
             const SizedBox(width: 14),
             Expanded(

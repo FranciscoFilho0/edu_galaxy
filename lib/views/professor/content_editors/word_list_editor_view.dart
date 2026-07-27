@@ -39,7 +39,7 @@ class WordListEditorView extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline, color: AppTheme.profSecondary, size: 18),
+                Icon(Icons.info_outline, color: AppTheme.profSecondary, size: 18),
                 const SizedBox(width: 8),
                 Expanded(child: Text(
                   type == WordListType.spelling
@@ -128,7 +128,7 @@ class WordListEditorView extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(existing == null ? 'Nova Palavra' : 'Editar Palavra',
-            style: const TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.w700)),
+            style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.w700)),
         content: SizedBox(
           width: 380,
           child: Column(
@@ -158,7 +158,7 @@ class WordListEditorView extends StatelessWidget {
             onPressed: () {
               if (wordCtrl.text.trim().isEmpty || hintCtrl.text.trim().isEmpty) {
                 ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Preencha palavra e dica.'), backgroundColor: AppTheme.profError),
+                  SnackBar(content: Text('Preencha palavra e dica.'), backgroundColor: AppTheme.profError),
                 );
                 return;
               }
@@ -212,7 +212,7 @@ class _WordCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(color: AppTheme.profSecondary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                        child: Text(word.subject, style: const TextStyle(fontSize: 10, color: AppTheme.profSecondary)),
+                        child: Text(word.subject, style: TextStyle(fontSize: 10, color: AppTheme.profSecondary)),
                       ),
                     ],
                   ),
@@ -220,7 +220,7 @@ class _WordCard extends StatelessWidget {
                   Text(word.hint, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                   if (showSyllables) ...[
                     const SizedBox(height: 4),
-                    Text(word.syllables.join(' - '), style: const TextStyle(fontSize: 12, color: AppTheme.profPrimary, fontWeight: FontWeight.w500)),
+                    Text(word.syllables.join(' - '), style: TextStyle(fontSize: 12, color: AppTheme.profPrimary, fontWeight: FontWeight.w500)),
                   ],
                 ],
               ),

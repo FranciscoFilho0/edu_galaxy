@@ -58,7 +58,7 @@ class QuizEditorView extends StatelessWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: Text(existing == null ? 'Nova Pergunta' : 'Editar Pergunta',
-              style: const TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.w700)),
+              style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.w700)),
           content: SizedBox(
             width: 400,
             child: SingleChildScrollView(
@@ -111,7 +111,7 @@ class QuizEditorView extends StatelessWidget {
               onPressed: () {
                 if (questionCtrl.text.trim().isEmpty || optionCtrls.any((c) => c.text.trim().isEmpty)) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Preencha todos os campos.'), backgroundColor: AppTheme.profError),
+                    SnackBar(content: Text('Preencha todos os campos.'), backgroundColor: AppTheme.profError),
                   );
                   return;
                 }
@@ -157,7 +157,7 @@ class _QuestionCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: AppTheme.profSecondary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Text(question.subject, style: const TextStyle(color: AppTheme.profSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+                  child: Text(question.subject, style: TextStyle(color: AppTheme.profSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
                 ),
                 const Spacer(),
                 IconButton(icon: const Icon(Icons.edit_outlined, size: 18), onPressed: onEdit, color: AppTheme.profPrimary),
@@ -181,7 +181,7 @@ class _QuestionCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (isCorrect) const Icon(Icons.check, size: 12, color: AppTheme.profSuccess),
+                      if (isCorrect) Icon(Icons.check, size: 12, color: AppTheme.profSuccess),
                       if (isCorrect) const SizedBox(width: 4),
                       Text(e.value, style: TextStyle(fontSize: 12, color: isCorrect ? AppTheme.profSuccess : Colors.grey.shade700)),
                     ],

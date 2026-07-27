@@ -86,11 +86,9 @@ class _StudentHomeViewState extends State<StudentHomeView> {
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.logout, color: Color(0xFF89B4FA)),
-                               onPressed: () async {
-  await auth.logout();
-  context.go(AppRoutes.login);
-},
+                                icon: const Icon(Icons.settings_outlined, color: Color(0xFF89B4FA)),
+                                tooltip: 'Configurações',
+                                onPressed: () => context.push(AppRoutes.studentSettings),
                               ),
                             ],
                           ),

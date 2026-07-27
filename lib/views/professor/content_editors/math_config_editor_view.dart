@@ -40,7 +40,7 @@ class MathConfigEditorView extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Text('Operações ativas', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.profPrimary)),
+          Text('Operações ativas', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.profPrimary)),
           const SizedBox(height: 4),
           Text('Escolha quais tipos de conta os alunos vão praticar.', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
           const SizedBox(height: 16),
@@ -63,7 +63,7 @@ class MathConfigEditorView extends StatelessWidget {
             );
           }),
           const SizedBox(height: 24),
-          const Text('Dificuldade numérica', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.profPrimary)),
+          Text('Dificuldade numérica', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.profPrimary)),
           const SizedBox(height: 4),
           Text('Define o maior número usado em soma e subtração.', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
           const SizedBox(height: 16),
@@ -79,7 +79,7 @@ class MathConfigEditorView extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(color: AppTheme.profPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                        child: Text('${content.mathMaxNumber}', style: const TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.bold)),
+                        child: Text('${content.mathMaxNumber}', style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -101,7 +101,7 @@ class MathConfigEditorView extends StatelessWidget {
               color: AppTheme.profWarning.withOpacity(0.08),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Row(
+            child: Row(
               children: [
                 Icon(Icons.info_outline, color: AppTheme.profWarning, size: 18),
                 SizedBox(width: 8),

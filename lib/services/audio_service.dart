@@ -21,8 +21,20 @@ class AudioService {
 
   BackgroundTrack? _currentTrack;
   bool _muted = false;
+  double _volume = 0.5;
 
   bool get isMuted => _muted;
+  double get volume => _volume;
+
+  /// Define o volume da música de fundo (0.0 a 1.0) e aplica imediatamente
+  /// se alguma faixa já estiver tocando. Quem persiste essa escolha entre
+  /// sessões é o `SettingsController`.
+  Future<void> setVolume(double volume) async {
+    _volume = volume.clamp(0.0, 1.0);
+    if (!_muted && _currentTrack != null) {
+      await _player.setVolume(_volume);
+    }
+  }
 
   /// Toca a música da área do aluno (telas com o menu inferior: Base,
   /// Jogos, Ranking, Diversão), em loop.
@@ -50,7 +62,7 @@ class AudioService {
     try {
       await _player.stop();
       await _player.setReleaseMode(ReleaseMode.loop);
-      await _player.setVolume(0.5);
+      await _player.setVolume(_volume);
       await _player.play(AssetSource(asset));
       debugPrint('AudioService: play() de "$asset" concluído sem erro.');
     } catch (e) {

@@ -14,6 +14,7 @@ class AppRoutes {
   static const String professorResults = '/professor/results';
   static const String professorStudents = '/professor/students';
   static const String professorStudentDetail = '/professor/students/:studentId';
+  static const String professorSettings = '/professor/settings';
 
   /// Monta a URL da tela de detalhe substituindo o :studentId pelo id real.
   static String professorStudentDetailPath(String studentId) =>
@@ -30,6 +31,7 @@ class AppRoutes {
   static const String studentGamePlay = '/student/games/play/:gameId';
   static const String studentRanking = '/student/ranking';
   static const String studentAchievements = '/student/achievements';
+  static const String studentSettings = '/student/settings';
 
   // Jogos livres (não pedagógicos — sem professor, sem envio de resultado)
   static const String studentCasualGames = '/student/casual';

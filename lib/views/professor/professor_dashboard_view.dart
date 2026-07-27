@@ -38,7 +38,7 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Alterar código da turma', style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.w700)),
+          title: Text('Alterar código da turma', style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.w700)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -103,12 +103,9 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: () async {
-              await auth.logout();
-              context.go(AppRoutes.login);
-            },
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Configurações',
+            onPressed: () => context.push(AppRoutes.professorSettings),
           ),
         ],
       ),
@@ -142,7 +139,7 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    const Text('Acesso rápido', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.profPrimary)),
+                    Text('Acesso rápido', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.profPrimary)),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -186,7 +183,7 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    const Text('Últimas atividades', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.profPrimary)),
+                    Text('Últimas atividades', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.profPrimary)),
                     const SizedBox(height: 12),
                     if (prof.results.isEmpty)
                       const Padding(
@@ -213,7 +210,7 @@ class _RoomCodeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [AppTheme.profPrimary, Color(0xFF3949AB)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -360,7 +357,7 @@ class _RecentResultTile extends StatelessWidget {
         children: [
           CircleAvatar(
             backgroundColor: AppTheme.profPrimary.withOpacity(0.1),
-            child: Text(result.studentName[0], style: const TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.bold)),
+            child: Text(result.studentName[0], style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 12),
           Expanded(

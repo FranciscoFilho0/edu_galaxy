@@ -21,7 +21,7 @@ class ProfessorStudentDetailView extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Editar Aluno', style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.w700)),
+        title: Text('Editar Aluno', style: TextStyle(color: AppTheme.profPrimary, fontWeight: FontWeight.w700)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -57,7 +57,7 @@ class ProfessorStudentDetailView extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Excluir Aluno', style: TextStyle(color: AppTheme.profError, fontWeight: FontWeight.w700)),
+        title: Text('Excluir Aluno', style: TextStyle(color: AppTheme.profError, fontWeight: FontWeight.w700)),
         content: Text(
           'Tem certeza que deseja excluir "${student.name}"? '
           'Todos os resultados de jogos desse aluno também serão apagados. '
@@ -173,7 +173,7 @@ class ProfessorStudentDetailView extends StatelessWidget {
                     ),
                     child: Text(
                       'Sala ${student.roomCode}',
-                      style: const TextStyle(color: AppTheme.profSecondary, fontWeight: FontWeight.w600, fontSize: 12),
+                      style: TextStyle(color: AppTheme.profSecondary, fontWeight: FontWeight.w600, fontSize: 12),
                     ),
                   ),
                 ],
@@ -208,7 +208,7 @@ class ProfessorStudentDetailView extends StatelessWidget {
                       Text('${e.value.length} jogos', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                       const SizedBox(width: 12),
                       Text('${subjectAvg.toStringAsFixed(0)}%',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.profPrimary)),
+                          style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.profPrimary)),
                     ],
                   ),
                 ),
@@ -247,7 +247,7 @@ class _StatCard extends StatelessWidget {
           children: [
             Icon(icon, color: AppTheme.profPrimary, size: 20),
             const SizedBox(height: 6),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.profPrimary)),
+            Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.profPrimary)),
             Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
           ],
         ),

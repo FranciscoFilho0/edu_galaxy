@@ -12,6 +12,18 @@ class TtsService {
   final FlutterTts _tts = FlutterTts();
   bool _initialized = false;
   bool _isSpeaking = false;
+  double _volume = 1.0;
+
+  double get volume => _volume;
+
+  /// Define o volume da voz (0.0 a 1.0) e aplica imediatamente. Quem
+  /// persiste essa escolha entre sessões é o `SettingsController`.
+  Future<void> setVolume(double volume) async {
+    _volume = volume.clamp(0.0, 1.0);
+    if (_initialized) {
+      await _tts.setVolume(_volume);
+    }
+  }
 
   Future<void> _ensureInitialized() async {
     if (_initialized) return;
@@ -20,7 +32,7 @@ class TtsService {
     // por crianças que ainda estão aprendendo a ler.
     await _tts.setSpeechRate(0.42);
     await _tts.setPitch(1.0);
-    await _tts.setVolume(1.0);
+    await _tts.setVolume(_volume);
 
     _tts.setStartHandler(() => _isSpeaking = true);
     _tts.setCompletionHandler(() => _isSpeaking = false);
