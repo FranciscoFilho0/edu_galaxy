@@ -67,7 +67,7 @@ class ProfessorStudentsView extends StatelessWidget {
                       hintText: 'Buscar aluno...',
                       prefixIcon: const Icon(Icons.search),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: AppTheme.profSurface,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     ),
                   ),

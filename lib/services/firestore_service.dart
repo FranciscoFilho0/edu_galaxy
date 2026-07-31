@@ -1,5 +1,7 @@
 import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/room_model.dart';
 import '../models/student_model.dart';
 import '../models/game_result_model.dart';
@@ -7,327 +9,858 @@ import '../models/quiz_question_model.dart';
 import '../models/word_entry_model.dart';
 import '../models/math_operation.dart';
 
-/// FirestoreService centraliza TODO o acesso ao banco de dados (Firestore).
-///
-/// Estrutura de dados usada:
-///
-/// roomCodes/{CODIGO}                -> { professorId }
-///   -> índice usado só para: (1) garantir que um código nunca se repita
-///      e (2) o aluno encontrar a sala pelo código digitado.
-///
-/// rooms/{professorId}               -> { code, professorName, activeSubjects, createdAt }
-///   -> UMA sala por professor. O ID do documento é o UID do professor
-///      (vem do Firebase Auth), então nunca existe ambiguidade sobre
-///      "de quem" é a sala.
-///
-/// rooms/{professorId}/students/{studentId}    -> alunos daquele professor
-/// rooms/{professorId}/results/{resultId}      -> resultados dos jogos daquele professor
-/// rooms/{professorId}/games/{gameId}          -> { isActive } por jogo
-/// rooms/{professorId}/quizQuestions/{id}      -> perguntas do jogo "Perguntas Espaciais"
-/// rooms/{professorId}/spellingWords/{id}      -> palavras do "Soletrar" / "Forca"
-/// rooms/{professorId}/syllableWords/{id}      -> palavras do "Quebra-Sílabas"
-/// rooms/{professorId}/settings/mathConfig     -> configuração do jogo de Cálculos
-/// rooms/{professorId}/settings/wordGamesConfig -> { ttsHintEnabled } (voz nos jogos de palavras)
-///
-/// Como cada professor só lê/escreve dentro de rooms/{seuProprioId}/...,
-/// e o aluno só acessa a sala do professor que ele encontrou pelo código,
-/// os dados de professores diferentes nunca se misturam.
 class FirestoreService {
   FirestoreService._();
+
   static final FirestoreService instance = FirestoreService._();
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> get _roomCodes => _db.collection('roomCodes');
-  CollectionReference<Map<String, dynamic>> get _rooms => _db.collection('rooms');
+  // ============================================================
+  // COLLECTIONS
+  // ============================================================
 
-  DocumentReference<Map<String, dynamic>> _roomDoc(String professorId) => _rooms.doc(professorId);
+  CollectionReference<Map<String, dynamic>> get _rooms =>
+      _db.collection('rooms');
 
-  // ── Sala do professor ────────────────────────────────────────────────────
+  CollectionReference<Map<String, dynamic>> get _roomCodes =>
+      _db.collection('roomCodes');
 
-  /// Gera um código de 6 caracteres (letras+números) que ainda não existe
-  /// em `roomCodes`. Tenta algumas vezes até achar um livre.
-  Future<String> _generateUniqueCode() async {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem O/0/I/1 para não confundir alunos
-    final rng = Random();
-    for (int attempt = 0; attempt < 15; attempt++) {
-      final code = List.generate(6, (_) => chars[rng.nextInt(chars.length)]).join();
-      final doc = await _roomCodes.doc(code).get();
-      if (!doc.exists) return code;
-    }
-    throw Exception('Não foi possível gerar um código de sala único. Tente novamente.');
+// ============================================================
+// REFERÊNCIAS DE SALAS
+// ============================================================
+
+/// Retorna a referência de uma sala pelo ID dela.
+///
+/// Toda a aplicação deve utilizar este método.
+/// Nunca mais acessar rooms/{professorId}.
+DocumentReference<Map<String, dynamic>> roomDoc(String roomId) {
+  return _rooms.doc(roomId);
+}
+
+/// Mantido apenas durante a migração.
+/// Será removido quando todas as telas forem convertidas.
+@Deprecated('Use roomDoc(roomId)')
+DocumentReference<Map<String, dynamic>> roomDocById(String roomId) {
+  return roomDoc(roomId);
+}
+
+  // ============================================================
+  // BUSCAR SALAS DO PROFESSOR
+  // ============================================================
+
+Query<Map<String, dynamic>> professorRooms(
+  String professorId,
+) {
+  return _rooms
+      .where(
+        'professorId',
+        isEqualTo: professorId,
+      )
+      .orderBy(
+        'createdAt',
+        descending: false,
+      );
+}
+
+  /// Observa todas as salas do professor em tempo real.
+  ///
+  /// Usado pela tela:
+  /// SelectRoomView
+  ///
+  Stream<List<RoomModel>> watchProfessorRooms(
+  String professorId,
+) {
+  return professorRooms(
+    professorId,
+  ).snapshots().map(
+    (snapshot) {
+      return snapshot.docs
+          .map(
+            (doc) => RoomModel.fromMap(
+              doc.id,
+              doc.data(),
+            ),
+          )
+          .toList();
+    },
+  );
+}
+
+// ============================================================
+// BUSCAR SALA
+// ============================================================
+
+Future<RoomModel?> fetchRoom(
+  String roomId,
+) async {
+  final doc = await roomDoc(
+    roomId,
+  ).get();
+
+  if (!doc.exists) {
+    return null;
   }
 
-  /// Busca a sala do professor. Se ele estiver logando pela primeira vez
-  /// (documento ainda não existe), cria a sala com um código novo.
-  /// Sempre retorna a MESMA sala para o MESMO professor (professorId = UID do Auth).
-  Future<RoomModel> getOrCreateRoom({
-    required String professorId,
-    required String professorName,
-  }) async {
-    final existing = await _roomDoc(professorId).get();
-    if (existing.exists) {
-      return RoomModel.fromMap(professorId, existing.data()!);
+  return RoomModel.fromMap(
+    doc.id,
+    doc.data()!,
+  );
+}
+
+Stream<RoomModel?> watchRoom(
+  String roomId,
+) {
+  return roomDoc(
+    roomId,
+  ).snapshots().map(
+    (doc) {
+      if (!doc.exists) return null;
+
+      return RoomModel.fromMap(
+        doc.id,
+        doc.data()!,
+      );
+    },
+  );
+}
+
+  // ============================================================
+  // GERADOR DE CÓDIGO DE SALA
+  // ============================================================
+
+  Future<String> _generateUniqueCode() async {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+    final random = Random();
+
+    for (int attempt = 0; attempt < 15; attempt++) {
+      final code = List.generate(
+        6,
+        (_) => chars[random.nextInt(chars.length)],
+      ).join();
+
+      final existing = await _roomCodes.doc(code).get();
+
+      if (!existing.exists) {
+        return code;
+      }
     }
 
-    final code = await _generateUniqueCode();
-    final room = RoomModel(
-      code: code,
-      professorId: professorId,
-      professorName: professorName,
-      activeSubjects: const ['Matemática', 'Português', 'Ciências'],
-      createdAt: DateTime.now(),
+    throw Exception(
+      'Não foi possível gerar código da sala.',
+    );
+  }
+
+  // ============================================================
+  // CRIAR NOVA SALA
+  // ============================================================
+
+Future<RoomModel> createRoom({
+  required String professorId,
+  required String professorName,
+  required String name,
+  String grade = '',
+  String schoolYear = '',
+  List<String> activeSubjects = const [
+    'Matemática',
+    'Português',
+    'Ciências',
+  ],
+}) async {
+  final roomRef = _rooms.doc();
+
+  final code = await _generateUniqueCode();
+
+  final room = RoomModel(
+    id: roomRef.id,
+    code: code,
+    professorId: professorId,
+    professorName: professorName,
+    name: name,
+    grade: grade,
+    schoolYear: schoolYear.isEmpty
+        ? DateTime.now().year.toString()
+        : schoolYear,
+    activeSubjects: activeSubjects,
+    createdAt: DateTime.now(),
+  );
+
+  await _db.runTransaction((transaction) async {
+    transaction.set(
+      roomRef,
+      room.toMap(),
     );
 
-    // Usamos uma transação para garantir que o código e a sala sejam
-    // criados juntos, sem risco de dois professores ficarem com o mesmo código.
-    await _db.runTransaction((tx) async {
-      tx.set(_roomDoc(professorId), room.toMap());
-      tx.set(_roomCodes.doc(code), {'professorId': professorId});
-    });
+    transaction.set(
+      _roomCodes.doc(code),
+      {
+        'roomId': room.id,
+        'professorId': professorId,
+      },
+    );
+  });
 
-    return room;
+  return room;
+}
+  // ============================================================
+  // SALA PRINCIPAL (COMPATIBILIDADE)
+  // ============================================================
+
+  /// Mantido para não quebrar o sistema atual.
+  ///
+  /// Futuramente será substituído pela seleção manual
+  /// de salas.
+
+Future<RoomModel> getOrCreateRoom({
+  required String professorId,
+  required String professorName,
+}) async {
+  final rooms = await professorRooms(
+    professorId,
+  ).limit(1).get();
+
+  if (rooms.docs.isNotEmpty) {
+    return RoomModel.fromMap(
+      rooms.docs.first.id,
+      rooms.docs.first.data(),
+    );
   }
 
-  /// Permite o professor trocar o código da própria sala, desde que o novo
-  /// código não esteja em uso por outro professor.
-  Future<bool> changeRoomCode({
-    required String professorId,
-    required String currentCode,
-    required String newCode,
-  }) async {
-    final normalized = newCode.trim().toUpperCase();
-    if (normalized.isEmpty || normalized == currentCode) return false;
+  return await createRoom(
+    professorId: professorId,
+    professorName: professorName,
+    name: 'Minha primeira sala',
+  );
+}
+// ============================================================
+// RESOLVER SALA PELO CÓDIGO
+// ============================================================
 
-    return _db.runTransaction<bool>((tx) async {
-      final newCodeDoc = await tx.get(_roomCodes.doc(normalized));
+Future<Map<String, String>?> resolveRoomByCode(
+  String code,
+) async {
+  final normalized = code.trim().toUpperCase();
+
+  final codeDoc = await _roomCodes.doc(
+    normalized,
+  ).get();
+
+  if (!codeDoc.exists) {
+    return null;
+  }
+
+  final data = codeDoc.data();
+
+  if (data == null) {
+    return null;
+  }
+
+  // Antes isso era um cast direto ("as String"), que lançava exceção se
+  // algum documento antigo/incompleto estivesse sem o campo. Agora trata
+  // como "sala não encontrada" em vez de derrubar o app.
+  final roomId = data['roomId'] as String?;
+
+  if (roomId == null || roomId.isEmpty) {
+    return null;
+  }
+
+  final professorId = data['professorId'] as String? ?? '';
+
+  final room = await fetchRoom(
+    roomId,
+  );
+
+  if (room == null) {
+    return null;
+  }
+
+  return {
+    'roomId': room.id,
+    'professorId': professorId,
+    'professorName': room.professorName,
+    'code': room.code,
+  };
+}
+// ============================================================
+// ALUNOS
+// ============================================================
+
+Future<List<StudentModel>> fetchStudents({
+  required String roomId,
+}) async {
+  final snapshot = await roomDoc(roomId)
+      .collection('students')
+      .get();
+
+  return snapshot.docs
+      .map(
+        (doc) => StudentModel.fromFirestore(
+          doc.id,
+          doc.data(),
+        ),
+      )
+      .toList();
+}
+Future<void> updateStudentAvatar({
+  required String roomId,
+  required String studentId,
+  required String avatarIndex,
+}) async {
+  await roomDoc(roomId)
+      .collection('students')
+      .doc(studentId)
+      .update({
+    'avatarIndex': avatarIndex,
+  });
+}
+Future<StudentModel> addStudent({
+  required String roomId,
+  required String professorId,
+  required String roomCode,
+  required String name,
+  required String avatarIndex,
+}) async {
+
+  final ref = roomDoc(roomId)
+      .collection('students')
+      .doc();
+
+  final student = StudentModel(
+    id: ref.id,
+    roomId: roomId,
+    name: name,
+    roomCode: roomCode,
+    avatarIndex: avatarIndex,
+    professorId: professorId,
+    createdAt: DateTime.now(),
+  );
+
+  await ref.set(
+    student.toMap(),
+  );
+
+  return student;
+}
+Future<void> updateStudentName({
+  required String roomId,
+  required String studentId,
+  required String name,
+}) async {
+
+  await roomDoc(roomId)
+      .collection('students')
+      .doc(studentId)
+      .update({
+    'name': name,
+  });
+
+}
+Future<void> deleteStudent({
+  required String roomId,
+  required String studentId,
+}) async {
+
+  final results = await roomDoc(roomId)
+      .collection('results')
+      .where(
+        'studentId',
+        isEqualTo: studentId,
+      )
+      .get();
+
+  final batch = _db.batch();
+
+  for (final doc in results.docs) {
+    batch.delete(doc.reference);
+  }
+
+  batch.delete(
+    roomDoc(roomId)
+        .collection('students')
+        .doc(studentId),
+  );
+
+  await batch.commit();
+
+}
+// ============================================================
+// RESULTADOS DOS JOGOS
+// ============================================================
+
+Future<List<GameResultModel>> fetchResults({
+  required String roomId,
+}) async {
+
+  final snapshot = await roomDoc(roomId)
+      .collection('results')
+      .orderBy(
+        'playedAt',
+        descending: true,
+      )
+      .get();
+
+
+  return snapshot.docs
+      .map(
+        (doc) => GameResultModel.fromMap(
+          doc.data(),
+        ),
+      )
+      .toList();
+}
+Future<void> saveResult({
+  required String roomId,
+  required GameResultModel result,
+}) async {
+
+  final ref = roomDoc(roomId)
+      .collection('results')
+      .doc();
+
+
+  final data = GameResultModel(
+    id: ref.id,
+    roomId: roomId,
+    professorId: result.professorId,
+    studentId: result.studentId,
+    studentName: result.studentName,
+    gameId: result.gameId,
+    gameName: result.gameName,
+    subject: result.subject,
+    score: result.score,
+    totalQuestions: result.totalQuestions,
+    playedAt: result.playedAt,
+    durationSeconds: result.durationSeconds,
+  );
+
+
+  await ref.set(
+    data.toMap(),
+  );
+
+}
+Future<void> deleteResultsForStudent({
+  required String roomId,
+  required String studentId,
+}) async {
+
+
+  final snapshot = await roomDoc(roomId)
+      .collection('results')
+      .where(
+        'studentId',
+        isEqualTo: studentId,
+      )
+      .get();
+
+
+  final batch = _db.batch();
+
+
+  for(final doc in snapshot.docs){
+
+    batch.delete(
+      doc.reference,
+    );
+
+  }
+
+
+  await batch.commit();
+
+}
+Future<List<GameResultModel>> fetchStudentResults({
+  required String roomId,
+  required String studentId,
+}) async {
+
+
+  final snapshot = await roomDoc(roomId)
+      .collection('results')
+      .where(
+        'studentId',
+        isEqualTo: studentId,
+      )
+      .orderBy(
+        'playedAt',
+        descending: true,
+      )
+      .get();
+
+
+  return snapshot.docs
+      .map(
+        (doc) => GameResultModel.fromMap(
+          doc.data(),
+        ),
+      )
+      .toList();
+
+}
+// ============================================================
+// JOGOS ATIVOS / INATIVOS
+// ============================================================
+
+Future<Map<String, bool>> fetchGamesActivation({
+  required String roomId,
+}) async {
+
+  final snapshot = await roomDoc(roomId)
+      .collection('games')
+      .get();
+
+
+  return {
+    for(final doc in snapshot.docs)
+      doc.id:
+      (doc.data()['isActive'] ?? true) as bool
+  };
+
+}
+Future<void> setGameActive({
+  required String roomId,
+  required String gameId,
+  required bool isActive,
+}) async {
+
+
+  await roomDoc(roomId)
+      .collection('games')
+      .doc(gameId)
+      .set({
+
+    'isActive': isActive,
+
+  });
+
+}
+// ============================================================
+// PERGUNTAS DO JOGO QUIZ
+// ============================================================
+
+Future<List<QuizQuestionModel>> fetchQuizQuestions({
+  required String roomId,
+}) async {
+
+
+  final snapshot =
+      await roomDoc(roomId)
+          .collection('quizQuestions')
+          .get();
+
+
+  return snapshot.docs
+      .map(
+        (doc)=> QuizQuestionModel.fromMap(
+          doc.data(),
+        ),
+      )
+      .toList();
+
+}
+// ============================================================
+// EXCLUIR SALA
+// ============================================================
+
+/// Apaga a sala inteira: o documento da sala, a entrada em `roomCodes`
+/// (pra ninguém mais conseguir entrar com aquele código) e todas as
+/// subcoleções (alunos, resultados, jogos, quiz, palavras, configurações).
+Future<void> deleteRoom({
+  required String roomId,
+}) async {
+
+  final roomSnap = await _rooms.doc(roomId).get();
+  final code = roomSnap.data()?['code'] as String?;
+
+  const subcollections = [
+    'students',
+    'results',
+    'games',
+    'quizQuestions',
+    'settings',
+    'spellingWords',
+    'syllableWords',
+  ];
+
+  for (final name in subcollections) {
+    final docs = await roomDoc(roomId).collection(name).get();
+
+    var batch = _db.batch();
+    var opCount = 0;
+
+    for (final doc in docs.docs) {
+      batch.delete(doc.reference);
+      opCount++;
+
+      // Limite de 500 operações por batch no Firestore; joga fora antes
+      // de bater no teto pra continuar deletando com segurança.
+      if (opCount >= 450) {
+        await batch.commit();
+        batch = _db.batch();
+        opCount = 0;
+      }
+    }
+
+    if (opCount > 0) {
+      await batch.commit();
+    }
+  }
+
+  final finalBatch = _db.batch();
+
+  finalBatch.delete(_rooms.doc(roomId));
+
+  if (code != null && code.isNotEmpty) {
+    finalBatch.delete(_roomCodes.doc(code));
+  }
+
+  await finalBatch.commit();
+}
+
+Future<bool> changeRoomCode({
+  required String roomId,
+  required String currentCode,
+  required String newCode,
+}) async {
+    final normalized = newCode.trim().toUpperCase();
+
+    if (normalized.isEmpty || normalized == currentCode) {
+      return false;
+    }
+
+    return await _db.runTransaction<bool>((transaction) async {
+      final newCodeDoc = await transaction.get(
+        _roomCodes.doc(normalized),
+      );
+
+      // Código já usado por outra sala
       if (newCodeDoc.exists) {
-        // já existe outro professor usando esse código
         return false;
       }
-      tx.set(_roomCodes.doc(normalized), {'professorId': professorId});
-      tx.delete(_roomCodes.doc(currentCode));
-      tx.update(_roomDoc(professorId), {'code': normalized});
-      return true;
+
+      // Precisa buscar a sala para saber o professorId, já que
+      // resolveRoomByCode() espera esse campo no documento de roomCodes.
+      final roomSnap = await transaction.get(_rooms.doc(roomId));
+      final professorId = roomSnap.data()?['professorId'] as String? ?? '';
+
+      transaction.set(
+  _roomCodes.doc(normalized),
+  {
+    'roomId': roomId,
+    'professorId': professorId,
+  },
+);
+
+      // remove código antigo
+      transaction.delete(
+        _roomCodes.doc(currentCode),
+      );
+
+     // atualiza a sala específica
+transaction.update(
+  _rooms.doc(roomId),
+  {
+    'code': normalized,
+  },
+);
+
+return true;
     });
   }
 
-  /// Usado pelo aluno: recebe o código digitado e descobre a qual professor
-  /// ele pertence. Retorna null se o código não existir.
-  Future<Map<String, String>?> resolveRoomByCode(String code) async {
-    final normalized = code.trim().toUpperCase();
-    final codeDoc = await _roomCodes.doc(normalized).get();
-    if (!codeDoc.exists) return null;
+Future<void> saveQuizQuestion({
+  required String roomId,
+  required QuizQuestionModel question,
+}) async {
 
-    final professorId = codeDoc.data()!['professorId'] as String;
-    final roomDoc = await _roomDoc(professorId).get();
-    if (!roomDoc.exists) return null;
 
-    return {
-      'professorId': professorId,
-      'professorName': roomDoc.data()!['professorName'] ?? '',
-      'code': normalized,
-    };
+  await roomDoc(roomId)
+      .collection('quizQuestions')
+      .doc(question.id)
+      .set(
+        question.toMap(),
+      );
+
+}
+
+Future<void> deleteQuizQuestion({
+  required String roomId,
+  required String id,
+}) async {
+
+
+  await roomDoc(roomId)
+      .collection('quizQuestions')
+      .doc(id)
+      .delete();
+
+}
+// ============================================================
+// PALAVRAS - SOLETRAR / FORCA / SILABAS
+// ============================================================
+
+Future<List<WordEntryModel>> fetchWords({
+
+  required String roomId,
+
+  required String collectionName,
+
+}) async {
+
+
+  final snapshot =
+      await roomDoc(roomId)
+          .collection(collectionName)
+          .get();
+
+
+  return snapshot.docs
+      .map(
+        (doc)=> WordEntryModel.fromMap(
+          doc.data(),
+        ),
+      )
+      .toList();
+
+}
+Future<void> saveWord({
+
+  required String roomId,
+
+  required String collectionName,
+
+  required WordEntryModel word,
+
+}) async {
+
+
+  await roomDoc(roomId)
+      .collection(collectionName)
+      .doc(word.id)
+      .set(
+        word.toMap(),
+      );
+
+}
+
+Future<void> deleteWord({
+
+  required String roomId,
+
+  required String collectionName,
+
+  required String id,
+
+}) async {
+
+
+  await roomDoc(roomId)
+      .collection(collectionName)
+      .doc(id)
+      .delete();
+
+}
+
+// ============================================================
+// CONFIGURAÇÃO DO JOGO DE MATEMÁTICA
+// ============================================================
+
+Future<Map<String,dynamic>?> fetchMathConfig({
+
+  required String roomId,
+
+}) async {
+
+
+  final doc =
+      await roomDoc(roomId)
+          .collection('settings')
+          .doc('mathConfig')
+          .get();
+
+
+  if(!doc.exists){
+    return null;
   }
 
-  // ── Alunos ───────────────────────────────────────────────────────────────
 
-  Future<List<StudentModel>> fetchStudents(String professorId) async {
-    final snap = await _roomDoc(professorId).collection('students').get();
-    return snap.docs.map((d) => StudentModel.fromMap(d.data())).toList();
+  return doc.data();
+
+}
+Future<void> saveMathConfig({
+
+  required String roomId,
+
+  required Set<MathOperation> operations,
+
+  required int maxNumber,
+
+}) async {
+
+
+  await roomDoc(roomId)
+      .collection('settings')
+      .doc('mathConfig')
+      .set({
+
+    'operations':
+      operations
+        .map(
+          (e)=>e.name,
+        )
+        .toList(),
+
+    'maxNumber':
+      maxNumber,
+
+  });
+
+}
+// ============================================================
+// CONFIGURAÇÃO DE VOZ DOS JOGOS
+// ============================================================
+
+Future<Map<String,dynamic>?> fetchWordGamesConfig({
+
+  required String roomId,
+
+}) async {
+
+
+  final doc =
+      await roomDoc(roomId)
+          .collection('settings')
+          .doc('wordGamesConfig')
+          .get();
+
+
+  if(!doc.exists){
+    return null;
   }
 
-  /// Atualiza só o avatar de um aluno que JÁ existe (usado quando o aluno,
-  /// pré-cadastrado pelo professor, escolhe seu avatar ao entrar na turma).
-  /// Não cria nenhum documento novo.
-  Future<void> updateStudentAvatar({
-    required String professorId,
-    required String studentId,
-    required String avatarIndex,
-  }) async {
-    await _roomDoc(professorId)
-        .collection('students')
-        .doc(studentId)
-        .update({'avatarIndex': avatarIndex});
-  }
 
-  Future<StudentModel> addStudent({
-    required String professorId,
-    required String roomCode,
-    required String name,
-    required String avatarIndex,
-  }) async {
-    final ref = _roomDoc(professorId).collection('students').doc();
-    final student = StudentModel(
-      id: ref.id,
-      name: name,
-      roomCode: roomCode,
-      avatarIndex: avatarIndex,
-      professorId: professorId,
-    );
-    await ref.set(student.toMap());
-    return student;
-  }
+  return doc.data();
 
-  /// Atualiza o nome de um aluno já cadastrado.
-  Future<void> updateStudentName({
-    required String professorId,
-    required String studentId,
-    required String name,
-  }) async {
-    await _roomDoc(professorId)
-        .collection('students')
-        .doc(studentId)
-        .update({'name': name});
-  }
+}
+Future<void> saveWordGamesConfig({
 
-  /// Exclui o aluno e também todos os resultados de jogos que ele já tinha
-  /// registrado, para não deixar "lixo" órfão no banco (resultado apontando
-  /// para um aluno que não existe mais).
-  Future<void> deleteStudent({
-    required String professorId,
-    required String studentId,
-  }) async {
-    final resultsSnap = await _roomDoc(professorId)
-        .collection('results')
-        .where('studentId', isEqualTo: studentId)
-        .get();
+  required String roomId,
 
-    // Batch: agrupa várias operações de escrita para executar de uma vez só,
-    // em vez de fazer uma chamada ao banco por resultado.
-    final batch = _db.batch();
-    for (final doc in resultsSnap.docs) {
-      batch.delete(doc.reference);
-    }
-    batch.delete(_roomDoc(professorId).collection('students').doc(studentId));
-    await batch.commit();
-  }
+  required bool ttsHintEnabled,
 
-  // ── Resultados de jogos ─────────────────────────────────────────────────
+}) async {
 
-  Future<List<GameResultModel>> fetchResults(String professorId) async {
-    final snap = await _roomDoc(professorId)
-        .collection('results')
-        .orderBy('playedAt', descending: true)
-        .get();
-    return snap.docs.map((d) => GameResultModel.fromMap(d.data())).toList();
-  }
 
-  Future<void> saveResult({
-    required String professorId,
-    required GameResultModel result,
-  }) async {
-    final ref = _roomDoc(professorId).collection('results').doc();
-    final withId = GameResultModel(
-      id: ref.id,
-      studentId: result.studentId,
-      studentName: result.studentName,
-      gameId: result.gameId,
-      gameName: result.gameName,
-      subject: result.subject,
-      score: result.score,
-      totalQuestions: result.totalQuestions,
-      playedAt: result.playedAt,
-      durationSeconds: result.durationSeconds,
-    );
-    await ref.set(withId.toMap());
-  }
+  await roomDoc(roomId)
+      .collection('settings')
+      .doc('wordGamesConfig')
+      .set({
 
-  /// Apaga todo o histórico de resultados de um aluno, sem excluir o
-  /// cadastro dele — usado quando o professor só quer "zerar" o desempenho
-  /// registrado (ex.: início de um novo bimestre) e manter o aluno na turma.
-  Future<void> deleteResultsForStudent({
-    required String professorId,
-    required String studentId,
-  }) async {
-    final resultsSnap = await _roomDoc(professorId)
-        .collection('results')
-        .where('studentId', isEqualTo: studentId)
-        .get();
+    'ttsHintEnabled':
+      ttsHintEnabled,
 
-    final batch = _db.batch();
-    for (final doc in resultsSnap.docs) {
-      batch.delete(doc.reference);
-    }
-    await batch.commit();
-  }
+  });
 
-  // ── Jogos ativos/inativos ───────────────────────────────────────────────
-
-  /// Retorna um mapa {gameId: isActive}. Jogos que nunca foram configurados
-  /// pelo professor não aparecem no mapa (a tela trata a ausência como "ativo").
-  Future<Map<String, bool>> fetchGamesActivation(String professorId) async {
-    final snap = await _roomDoc(professorId).collection('games').get();
-    return {for (final d in snap.docs) d.id: (d.data()['isActive'] ?? true) as bool};
-  }
-
-  Future<void> setGameActive(String professorId, String gameId, bool isActive) async {
-    await _roomDoc(professorId).collection('games').doc(gameId).set({'isActive': isActive});
-  }
-
-  // ── Conteúdo: Perguntas e Respostas ─────────────────────────────────────
-
-  Future<List<QuizQuestionModel>> fetchQuizQuestions(String professorId) async {
-    final snap = await _roomDoc(professorId).collection('quizQuestions').get();
-    return snap.docs.map((d) => QuizQuestionModel.fromMap(d.data())).toList();
-  }
-
-  Future<void> saveQuizQuestion(String professorId, QuizQuestionModel q) async {
-    await _roomDoc(professorId).collection('quizQuestions').doc(q.id).set(q.toMap());
-  }
-
-  Future<void> deleteQuizQuestion(String professorId, String id) async {
-    await _roomDoc(professorId).collection('quizQuestions').doc(id).delete();
-  }
-
-  // ── Conteúdo: Soletrar / Forca / Sílabas (mesmo formato, coleções diferentes) ──
-
-  Future<List<WordEntryModel>> fetchWords(String professorId, String collectionName) async {
-    final snap = await _roomDoc(professorId).collection(collectionName).get();
-    return snap.docs.map((d) => WordEntryModel.fromMap(d.data())).toList();
-  }
-
-  Future<void> saveWord(String professorId, String collectionName, WordEntryModel w) async {
-    await _roomDoc(professorId).collection(collectionName).doc(w.id).set(w.toMap());
-  }
-
-  Future<void> deleteWord(String professorId, String collectionName, String id) async {
-    await _roomDoc(professorId).collection(collectionName).doc(id).delete();
-  }
-
-  // ── Conteúdo: Configuração do jogo de Cálculos ──────────────────────────
-
-  Future<Map<String, dynamic>?> fetchMathConfig(String professorId) async {
-    final doc = await _roomDoc(professorId).collection('settings').doc('mathConfig').get();
-    return doc.exists ? doc.data() : null;
-  }
-
-  Future<void> saveMathConfig({
-    required String professorId,
-    required Set<MathOperation> operations,
-    required int maxNumber,
-  }) async {
-    await _roomDoc(professorId).collection('settings').doc('mathConfig').set({
-      'operations': operations.map((o) => o.name).toList(),
-      'maxNumber': maxNumber,
-    });
-  }
-
-  // ── Conteúdo: Configuração de voz (TTS) dos jogos de palavras ──────────
-  // Controla se Forca, Soletrar e Sílabas podem falar a dica em voz alta
-  // (só quando o aluno aperta o botão de alto-falante; nunca a palavra).
-
-  Future<Map<String, dynamic>?> fetchWordGamesConfig(String professorId) async {
-    final doc = await _roomDoc(professorId).collection('settings').doc('wordGamesConfig').get();
-    return doc.exists ? doc.data() : null;
-  }
-
-  Future<void> saveWordGamesConfig({
-    required String professorId,
-    required bool ttsHintEnabled,
-  }) async {
-    await _roomDoc(professorId).collection('settings').doc('wordGamesConfig').set({
-      'ttsHintEnabled': ttsHintEnabled,
-    });
-  }
+}
 }

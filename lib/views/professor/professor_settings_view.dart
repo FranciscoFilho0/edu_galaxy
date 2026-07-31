@@ -51,14 +51,33 @@ class ProfessorSettingsView extends StatelessWidget {
                 color: AppTheme.profSurface,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: ListTile(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                leading: Icon(Icons.logout, color: AppTheme.profError),
-                title: Text('Sair da conta', style: TextStyle(color: AppTheme.profOnSurface, fontWeight: FontWeight.w600)),
-                onTap: () async {
-                  await auth.logout();
-                  if (context.mounted) context.go(AppRoutes.login);
-                },
+              child: Column(
+                children: [
+                  ListTile(
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                    ),
+                    leading: Icon(Icons.swap_horiz_rounded, color: AppTheme.profPrimary),
+                    title: Text('Trocar de sala', style: TextStyle(color: AppTheme.profOnSurface, fontWeight: FontWeight.w600)),
+                    subtitle: Text(
+                      'Escolher outra turma sem sair da conta',
+                      style: TextStyle(color: AppTheme.profOnSurface.withOpacity(0.65), fontSize: 12.5),
+                    ),
+                    onTap: () => context.push(AppRoutes.selectRoom),
+                  ),
+                  Divider(height: 1, color: AppTheme.profOnSurface.withOpacity(0.1)),
+                  ListTile(
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
+                    ),
+                    leading: Icon(Icons.logout, color: AppTheme.profError),
+                    title: Text('Sair da conta', style: TextStyle(color: AppTheme.profOnSurface, fontWeight: FontWeight.w600)),
+                    onTap: () async {
+                      await auth.logout();
+                      if (context.mounted) context.go(AppRoutes.login);
+                    },
+                  ),
+                ],
               ),
             ),
           ],

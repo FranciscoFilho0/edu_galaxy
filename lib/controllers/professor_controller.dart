@@ -22,19 +22,28 @@ class ProfessorController extends ChangeNotifier {
   RoomModel? get room => _room;
   List<GameModel> get games => _games;
 
-  /// Carrega a sala, os alunos, os resultados e os jogos ativos desse
-  /// professor — tudo filtrado pelo professorId, então um professor nunca
-  /// enxerga dado de outro.
-  Future<void> loadData(String professorId, {String professorName = 'Professor'}) async {
+  /// Carrega a sala, os alunos, os resultados e os jogos ativos dessa sala —
+  /// tudo filtrado pelo roomId da sala resolvida, então um professor nunca
+  /// enxerga dado de outra turma.
+  ///
+  /// Se [roomId] for informado (sala que o professor escolheu em
+  /// SelectRoomView), carrega exatamente essa sala. Só cai para
+  /// getOrCreateRoom (que pega/gera "a" sala do professor) quando não há
+  /// nenhuma sala selecionada — ex.: sessão restaurada direto na splash.
+  Future<void> loadData(String professorId, {String professorName = 'Professor', String? roomId}) async {
     if (professorId.isEmpty) return;
     _isLoading = true;
     notifyListeners();
 
     try {
-      final room = await _db.getOrCreateRoom(professorId: professorId, professorName: professorName);
-      final students = await _db.fetchStudents(professorId);
-      final results = await _db.fetchResults(professorId);
-      final activation = await _db.fetchGamesActivation(professorId);
+      final room = roomId != null
+          ? (await _db.fetchRoom(roomId)) ??
+              await _db.getOrCreateRoom(professorId: professorId, professorName: professorName)
+          : await _db.getOrCreateRoom(professorId: professorId, professorName: professorName);
+      final resolvedRoomId = room.id;
+      final students = await _db.fetchStudents(roomId: resolvedRoomId);
+      final results = await _db.fetchResults(roomId: resolvedRoomId);
+      final activation = await _db.fetchGamesActivation(roomId: resolvedRoomId);
 
       _room = room;
       _students = students;
@@ -66,6 +75,7 @@ class ProfessorController extends ChangeNotifier {
 
     try {
       final newStudent = await _db.addStudent(
+        roomId: _room!.id,
         professorId: _room!.professorId,
         roomCode: _room!.code,
         name: name,
@@ -93,7 +103,7 @@ class ProfessorController extends ChangeNotifier {
 
     try {
       await _db.updateStudentName(
-        professorId: _room!.professorId,
+        roomId: _room!.id,
         studentId: studentId,
         name: name,
       );
@@ -113,7 +123,7 @@ class ProfessorController extends ChangeNotifier {
     if (_room == null) return false;
 
     try {
-      await _db.deleteStudent(professorId: _room!.professorId, studentId: studentId);
+      await _db.deleteStudent(roomId: _room!.id, studentId: studentId);
       _students = _students.where((s) => s.id != studentId).toList();
       _results = _results.where((r) => r.studentId != studentId).toList();
       notifyListeners();
@@ -142,14 +152,14 @@ class ProfessorController extends ChangeNotifier {
     notifyListeners();
 
     // ...e depois salva no banco, para o aluno passar a ver a mudança.
-    await _db.setGameActive(_room!.professorId, gameId, newValue);
+    await _db.setGameActive(roomId: _room!.id, gameId: gameId, isActive: newValue);
   }
 
   /// Tenta trocar o código da sala. Retorna false se o código já estiver em uso.
   Future<bool> changeRoomCode(String newCode) async {
     if (_room == null) return false;
     final ok = await _db.changeRoomCode(
-      professorId: _room!.professorId,
+      roomId: _room!.id,
       currentCode: _room!.code,
       newCode: newCode,
     );
@@ -171,7 +181,7 @@ class ProfessorController extends ChangeNotifier {
     if (_room == null) return false;
 
     try {
-      await _db.deleteResultsForStudent(professorId: _room!.professorId, studentId: studentId);
+      await _db.deleteResultsForStudent(roomId: _room!.id, studentId: studentId);
       _results = _results.where((r) => r.studentId != studentId).toList();
       notifyListeners();
       return true;

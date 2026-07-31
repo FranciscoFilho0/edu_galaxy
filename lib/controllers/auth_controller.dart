@@ -2,53 +2,172 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/user_model.dart';
 import '../models/student_model.dart';
+import '../models/room_model.dart';
+
 import '../services/firestore_service.dart';
 
-class AuthController extends ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
-  final FirestoreService _db = FirestoreService.instance;
 
-  // Chaves usadas para salvar a sessão do ALUNO no armazenamento local do
-  // aparelho (o professor não precisa disso — o pacote firebase_auth já
-  // guarda a sessão dele sozinho, ver `tryAutoLogin` mais abaixo).
-  static const String _kStudentProfessorIdKey = 'session_student_professorId';
-  static const String _kStudentIdKey = 'session_student_id';
+class AuthController extends ChangeNotifier {
+
+
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
+
+
+  final GoogleSignIn _googleSignIn =
+      GoogleSignIn();
+
+
+  final FirestoreService _db =
+      FirestoreService.instance;
+
+
+
+  // ============================================================
+  // SESSÕES SALVAS
+  // ============================================================
+
+
+  static const String _kStudentRoomIdKey =
+      'session_student_roomId';
+
+
+  static const String _kStudentIdKey =
+      'session_student_id';
+
+
+
+  static const String _kProfessorRoomKey =
+      'session_professor_roomId';
+
+
+
+
+
+  // ============================================================
+  // ESTADO ATUAL
+  // ============================================================
+
 
   UserModel? _currentUser;
+
+
   StudentModel? _currentStudent;
+
+
+  RoomModel? _currentRoom;
+
+
+
   bool _isLoading = false;
-  // Fica true só durante a checagem inicial (tryAutoLogin), enquanto a
-  // splash screen decide para onde mandar o usuário.
+
+
   bool _isRestoringSession = true;
+
+
   String? _errorMessage;
 
-  // Dados temporários guardados entre a tela de "código da turma" e a tela
-  // de "criar perfil do aluno" (ainda não temos um StudentModel completo
-  // nesse meio-tempo, só sabemos a qual professor a sala pertence).
+
+
+
+
+  // ============================================================
+  // DADOS TEMPORÁRIOS DO LOGIN DO ALUNO
+  // ============================================================
+
+
+  String? _pendingRoomId;
+
+
   String? _pendingProfessorId;
+
+
   String? _pendingProfessorName;
+
+
   String? _pendingRoomCode;
-  // Lista de alunos que o PROFESSOR já cadastrou nessa sala. É contra essa
-  // lista que validamos o nome digitado na tela seguinte — o aluno só
-  // consegue entrar se o professor já tiver cadastrado ele antes.
+
+
+
   List<StudentModel> _pendingRoomStudents = [];
 
-  UserModel? get currentUser => _currentUser;
-  StudentModel? get currentStudent => _currentStudent;
-  bool get isLoading => _isLoading;
-  bool get isRestoringSession => _isRestoringSession;
-  String? get errorMessage => _errorMessage;
-  bool get isAuthenticated => _currentUser != null || _currentStudent != null;
-  bool get isProfessor => _currentUser?.role == UserRole.professor;
 
-  String? get pendingProfessorId => _pendingProfessorId;
-  String? get pendingProfessorName => _pendingProfessorName;
-  String? get pendingRoomCode => _pendingRoomCode;
-  List<StudentModel> get pendingRoomStudents => _pendingRoomStudents;
 
+
+
+  // ============================================================
+  // GETTERS
+  // ============================================================
+
+
+  UserModel? get currentUser =>
+      _currentUser;
+
+
+
+  StudentModel? get currentStudent =>
+      _currentStudent;
+
+
+
+  RoomModel? get currentRoom =>
+      _currentRoom;
+
+
+
+
+  bool get isLoading =>
+      _isLoading;
+
+
+
+  bool get isRestoringSession =>
+      _isRestoringSession;
+
+
+
+  String? get errorMessage =>
+      _errorMessage;
+
+
+
+  bool get isAuthenticated =>
+      _currentUser != null ||
+      _currentStudent != null;
+
+
+
+  bool get isProfessor =>
+      _currentUser?.role ==
+      UserRole.professor;
+
+
+
+  String? get pendingRoomId =>
+      _pendingRoomId;
+
+
+
+  String? get pendingProfessorId =>
+      _pendingProfessorId;
+
+
+
+  String? get pendingProfessorName =>
+      _pendingProfessorName;
+
+
+
+  String? get pendingRoomCode =>
+      _pendingRoomCode;
+
+
+
+  List<StudentModel> get pendingRoomStudents =>
+      _pendingRoomStudents;
   // ── Restaurar sessão salva (chamado uma vez, na splash screen) ──────────
   /// O professor não precisa de nada especial aqui: o pacote firebase_auth
   /// JÁ mantém o login salvo sozinho entre uma abertura e outra do app
@@ -60,149 +179,499 @@ class AuthController extends ChangeNotifier {
   /// sozinho, então SOMOS NÓS que salvamos o id do professor + id do aluno
   /// no armazenamento local (SharedPreferences) quando ele entra, e
   /// buscamos de novo aqui.
-  Future<void> tryAutoLogin() async {
-    _isRestoringSession = true;
-    notifyListeners();
+ // ============================================================
+// RESTAURAR SESSÃO
+// ============================================================
 
-    try {
-      final fbUser = _auth.currentUser;
+Future<void> tryAutoLogin() async {
 
-      // Caso 1: existe um usuário do Firebase Auth logado e NÃO é anônimo
-      // (login anônimo é só o "truque técnico" usado pelo aluno para poder
-      // ler o Firestore — não conta como professor logado).
-      if (fbUser != null && !fbUser.isAnonymous) {
-        _currentUser = UserModel(
-          id: fbUser.uid,
-          name: fbUser.displayName ?? _nameFromEmail(fbUser.email ?? ''),
-          email: fbUser.email ?? '',
-          role: UserRole.professor,
-        );
-        await _db.getOrCreateRoom(professorId: fbUser.uid, professorName: _currentUser!.name);
-        _isRestoringSession = false;
-        notifyListeners();
-        return;
-      }
+  _isRestoringSession = true;
 
-      // Caso 2: procura uma sessão de aluno salva localmente.
-      final prefs = await SharedPreferences.getInstance();
-      final savedProfessorId = prefs.getString(_kStudentProfessorIdKey);
-      final savedStudentId = prefs.getString(_kStudentIdKey);
+  notifyListeners();
 
-      if (savedProfessorId != null && savedStudentId != null) {
-        // Garante o login anônimo de novo, caso o app tenha sido reaberto
-        // sem nenhuma sessão do Firebase Auth ativa (ex: cache limpo).
-        if (_auth.currentUser == null) {
-          await _auth.signInAnonymously();
-        }
 
-        final students = await _db.fetchStudents(savedProfessorId);
-        StudentModel? match;
-        for (final s in students) {
-          if (s.id == savedStudentId) {
-            match = s;
-            break;
+  try {
+
+
+    final fbUser =
+        _auth.currentUser;
+
+
+
+    // =========================================================
+    // PROFESSOR
+    // =========================================================
+
+
+    if(
+      fbUser != null &&
+      !fbUser.isAnonymous
+    ){
+
+
+      _currentUser = UserModel(
+
+        id: fbUser.uid,
+
+        name:
+            fbUser.displayName ??
+            _nameFromEmail(
+              fbUser.email ?? '',
+            ),
+
+        email:
+            fbUser.email ?? '',
+
+        role:
+            UserRole.professor,
+
+      );
+
+
+
+      // Recupera última sala selecionada
+
+      final prefs =
+          await SharedPreferences.getInstance();
+
+
+      final savedRoomId =
+          prefs.getString(
+            _kProfessorRoomKey,
+          );
+
+
+
+      if(savedRoomId != null){
+
+
+        try {
+
+
+          final room =
+              await _db.roomDocById(
+                savedRoomId,
+              )
+              .get();
+
+
+
+          if(room.exists){
+
+
+            _currentRoom =
+                RoomModel.fromFirestore(
+                  room,
+                );
+
+
           }
+
+
+        }catch(e){
+
+
+          debugPrint(
+            'Erro ao restaurar sala professor: $e',
+          );
+
+
         }
 
-        if (match != null) {
-          _currentStudent = match;
-        } else {
-          // O professor pode ter removido o aluno da turma nesse meio
-          // tempo — nesse caso não faz sentido manter a sessão salva.
-          await prefs.remove(_kStudentProfessorIdKey);
-          await prefs.remove(_kStudentIdKey);
-        }
+
       }
-    } catch (e) {
-      debugPrint('Erro ao restaurar sessão: $e');
+
+
+
+      _isRestoringSession = false;
+
+      notifyListeners();
+
+      return;
+
     }
 
-    _isRestoringSession = false;
-    notifyListeners();
+
+
+
+
+
+
+    // =========================================================
+    // ALUNO
+    // =========================================================
+
+
+    final prefs =
+        await SharedPreferences.getInstance();
+
+
+
+    final savedRoomId =
+        prefs.getString(
+          _kStudentRoomIdKey,
+        );
+
+
+  
+
+final savedStudentId =
+    prefs.getString(
+      _kStudentIdKey,
+    );
+
+
+
+
+
+   if(
+  savedRoomId != null &&
+  savedStudentId != null
+){
+
+
+
+      if(
+        _auth.currentUser == null
+      ){
+
+        await _auth.signInAnonymously();
+
+      }
+
+
+
+
+      final students =
+    await _db.fetchStudents(
+      roomId: savedRoomId,
+    );
+
+
+      StudentModel? match;
+
+
+
+      for(final student in students){
+
+
+        if(
+          student.id ==
+          savedStudentId
+        ){
+
+          match = student;
+
+          break;
+
+        }
+
+
+      }
+
+
+
+      if(match != null){
+
+
+        _currentStudent =
+            match;
+
+
+
+        final room =
+            await _db.roomDocById(
+              savedRoomId,
+            )
+            .get();
+
+
+
+        if(room.exists){
+
+
+          _currentRoom =
+              RoomModel.fromFirestore(
+                room,
+              );
+
+
+        }
+
+
+
+      }else{
+
+
+        await prefs.remove(
+          _kStudentRoomIdKey,
+        );
+
+
+       
+
+
+        await prefs.remove(
+          _kStudentIdKey,
+        );
+
+
+      }
+
+
+
+    }
+
+
+
+  }catch(e){
+
+
+    debugPrint(
+      'Erro ao restaurar sessão: $e',
+    );
+
+
   }
 
+
+
+  _isRestoringSession = false;
+
+
+  notifyListeners();
+
+
+}
   // ── Login com e-mail e senha ─────────────────────────────────────────────
-  Future<bool> loginProfessor(String email, String password) async {
-    _isLoading = true;
-    _errorMessage = null;
+// ============================================================
+// LOGIN PROFESSOR
+// ============================================================
+
+Future<bool> loginProfessor(
+  String email,
+  String password,
+) async {
+
+  _isLoading = true;
+  _errorMessage = null;
+  notifyListeners();
+
+
+  try {
+
+
+    final credential =
+        await _auth.signInWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        );
+
+
+    final user =
+        credential.user;
+
+
+    if(user == null){
+      throw FirebaseAuthException(
+        code: 'null-user',
+      );
+    }
+
+
+
+    _currentUser = UserModel(
+
+      id: user.uid,
+
+      name:
+          user.displayName ??
+          _nameFromEmail(
+            user.email ?? '',
+          ),
+
+      email:
+          user.email ?? '',
+
+      role:
+          UserRole.professor,
+
+    );
+
+
+
+    _isLoading = false;
+
     notifyListeners();
 
-    try {
-      final credential = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      final user = credential.user;
-      if (user == null) throw FirebaseAuthException(code: 'null-user');
 
-      _currentUser = UserModel(
-        id: user.uid,
-        name: user.displayName ?? _nameFromEmail(user.email ?? ''),
-        email: user.email ?? '',
-        role: UserRole.professor,
-      );
+    return true;
 
-      // Garante que a sala desse professor existe (se já existir, só a reaproveita).
-      await _db.getOrCreateRoom(professorId: user.uid, professorName: _currentUser!.name);
 
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _translateError(e.code);
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      debugPrint('Erro no login: $e');
-      return false;
-    }
+
+  }on FirebaseAuthException catch(e){
+
+
+    _errorMessage =
+        _translateError(
+          e.code,
+        );
+
+
+    _isLoading = false;
+
+    notifyListeners();
+
+
+    return false;
+
+
+  }catch(e){
+
+
+    debugPrint(
+      'Erro login professor: $e',
+    );
+
+
+    _errorMessage =
+        'Erro ao realizar login.';
+
+
+    _isLoading = false;
+
+    notifyListeners();
+
+
+    return false;
+
   }
 
+}
+
+
+
+// ============================================================
+// CADASTRO PROFESSOR
+// ============================================================
+
+
+Future<bool> registerProfessor(
+  String name,
+  String email,
+  String password,
+) async {
+
+
+  _isLoading = true;
+
+  _errorMessage = null;
+
+  notifyListeners();
+
+
+
+  try {
+
+
+    final credential =
+        await _auth.createUserWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        );
+
+
+
+    final user =
+        credential.user;
+
+
+
+    if(user == null){
+
+      throw FirebaseAuthException(
+        code:'null-user',
+      );
+
+    }
+
+
+
+    await user.updateDisplayName(
+      name.trim(),
+    );
+
+
+
+    _currentUser =
+        UserModel(
+
+          id:user.uid,
+
+          name:name.trim(),
+
+          email:
+              user.email ?? '',
+
+          role:
+              UserRole.professor,
+
+        );
+
+
+
+    _isLoading=false;
+
+    notifyListeners();
+
+
+
+    return true;
+
+
+
+  }on FirebaseAuthException catch(e){
+
+
+    _errorMessage =
+        _translateError(
+          e.code,
+        );
+
+
+    _isLoading=false;
+
+    notifyListeners();
+
+
+    return false;
+
+
+
+  }catch(e){
+
+
+    debugPrint(
+      'Erro cadastro professor: $e',
+    );
+
+
+    _errorMessage =
+        'Erro inesperado.';
+
+
+
+    _isLoading=false;
+
+    notifyListeners();
+
+
+    return false;
+
+  }
+
+}
   // ── Cadastro com e-mail e senha ──────────────────────────────────────────
-  Future<bool> registerProfessor(String name, String email, String password) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      final user = credential.user;
-      if (user == null) throw FirebaseAuthException(code: 'null-user');
-
-      await user.updateDisplayName(name.trim());
-
-      _currentUser = UserModel(
-        id: user.uid,
-        name: name.trim(),
-        email: user.email ?? '',
-        role: UserRole.professor,
-      );
-
-      // Cria a sala já no cadastro, com um código único gerado na hora.
-      await _db.getOrCreateRoom(professorId: user.uid, professorName: _currentUser!.name);
-
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _translateError(e.code);
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _errorMessage = 'Erro inesperado. Tente novamente.';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
   // ── Login com Google ─────────────────────────────────────────────────────
   Future<bool> loginWithGoogle() async {
     _isLoading = true;
@@ -221,7 +690,15 @@ class AuthController extends ChangeNotifier {
           email: user.email ?? '',
           role: UserRole.professor,
         );
-        await _db.getOrCreateRoom(professorId: user.uid, professorName: _currentUser!.name);
+        // A criação/recuperação da sala é feita à parte: se ela falhar
+        // (ex.: índice do Firestore, rede), o login com Google já foi
+        // concluído com sucesso e não deve ser desfeito por causa disso.
+        // ProfessorController.loadData() tenta de novo ao entrar no dashboard.
+        try {
+          await _db.getOrCreateRoom(professorId: user.uid, professorName: _currentUser!.name);
+        } catch (e) {
+          debugPrint('Aviso: falha ao preparar sala após login Google (web): $e');
+        }
         _isLoading = false;
         notifyListeners();
         return true;
@@ -251,7 +728,13 @@ class AuthController extends ChangeNotifier {
         email: user.email ?? '',
         role: UserRole.professor,
       );
-      await _db.getOrCreateRoom(professorId: user.uid, professorName: _currentUser!.name);
+      // Mesma lógica do fluxo web: não deixar uma falha ao criar/recuperar
+      // a sala derrubar um login Google que já foi concluído com sucesso.
+      try {
+        await _db.getOrCreateRoom(professorId: user.uid, professorName: _currentUser!.name);
+      } catch (e) {
+        debugPrint('Aviso: falha ao preparar sala após login Google (mobile): $e');
+      }
 
       _isLoading = false;
       notifyListeners();
@@ -287,160 +770,522 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  // ── Login aluno por código de sala ───────────────────────────────────────
-  /// Agora consulta o Firestore de verdade: só passa se o código pertencer
-  /// a uma sala existente. Guarda o professorId encontrado para usarmos na
-  /// tela seguinte (criação do perfil do aluno).
-  Future<bool> loginWithRoomCode(String roomCode) async {
-    _isLoading = true;
-    _errorMessage = null;
+  // ============================================================
+// LOGIN ALUNO PELO CÓDIGO DA SALA
+// ============================================================
+
+
+Future<bool> loginWithRoomCode(
+  String roomCode,
+) async {
+
+
+  _isLoading = true;
+
+  _errorMessage = null;
+
+  notifyListeners();
+
+
+
+  final code =
+      roomCode.trim().toUpperCase();
+
+
+
+  if(code.length != 6){
+
+
+    _errorMessage =
+        'Código de sala inválido.';
+
+
+    _isLoading=false;
+
     notifyListeners();
 
-    final code = roomCode.trim().toUpperCase();
-    if (code.length != 6) {
-      _errorMessage = 'Código de sala inválido. Use 6 dígitos.';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
 
-    try {
-      // O aluno não faz login com e-mail/senha nem Google, mas o Firestore
-      // (com as regras de segurança recomendadas) só permite leitura para
-      // usuários autenticados. Por isso, garantimos um login anônimo antes
-      // de consultar o código da sala. Isso não cria conta "de verdade":
-      // é só um UID técnico do Firebase Auth para satisfazer as regras.
-      if (_auth.currentUser == null) {
-        await _auth.signInAnonymously();
-      }
+    return false;
 
-      final room = await _db.resolveRoomByCode(code);
-      if (room == null) {
-        _errorMessage = 'Não encontramos nenhuma turma com esse código.';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      final professorId = room['professorId']!;
-
-      // Só deixamos passar se o professor já tiver cadastrado pelo menos
-      // um aluno nessa turma. Isso evita que qualquer pessoa com o código
-      // entre sem estar na lista do professor.
-      final students = await _db.fetchStudents(professorId);
-      if (students.isEmpty) {
-        _errorMessage = 'Essa turma ainda não tem alunos cadastrados. Peça ao seu professor para te cadastrar antes de entrar.';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      _pendingProfessorId = professorId;
-      _pendingProfessorName = room['professorName'];
-      _pendingRoomCode = room['code'];
-      _pendingRoomStudents = students;
-
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } on FirebaseAuthException catch (e) {
-      debugPrint('Erro (FirebaseAuth) ao verificar código de sala: ${e.code} - ${e.message}');
-      _errorMessage = 'Erro ao verificar o código. Tente novamente.';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      // Deixamos o erro real no log (visível no terminal/Logcat) para
-      // facilitar o diagnóstico, mesmo mostrando uma mensagem amigável
-      // para o aluno.
-      debugPrint('Erro ao verificar código de sala: $e');
-      _errorMessage = 'Erro ao verificar o código. Tente novamente.';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
   }
 
 
-  /// Confirma a entrada do aluno na turma. NÃO cria nenhum aluno novo —
-  /// só permite continuar se o nome digitado bater com um aluno que o
-  /// PROFESSOR já cadastrou nessa sala (comparação sem diferenciar
-  /// maiúsculas/minúsculas e ignorando espaços extras).
-  Future<bool> registerStudentProfile({
-    required String name,
-    required String avatarIndex,
-  }) async {
-    if (_pendingProfessorId == null || _pendingRoomCode == null) return false;
 
-    _isLoading = true;
-    _errorMessage = null;
+  try {
+
+
+
+    // Login anônimo para leitura do Firestore
+
+    if(_auth.currentUser == null){
+
+
+      await _auth.signInAnonymously();
+
+
+    }
+
+
+
+    final room =
+        await _db.resolveRoomByCode(
+          code,
+        );
+
+
+
+    if(room == null){
+
+
+      _errorMessage =
+          'Sala não encontrada.';
+
+
+      _isLoading=false;
+
+      notifyListeners();
+
+
+      return false;
+
+
+    }
+
+
+
+    final roomId =
+        room['roomId']!;
+
+
+
+    final professorId =
+        room['professorId']!;
+
+
+
+
+    // Busca alunos DENTRO DA SALA correta
+
+    final students =
+        await _db.fetchStudents(
+          roomId: roomId,
+        );
+
+
+
+    if(students.isEmpty){
+
+
+      _errorMessage =
+          'Essa sala ainda não possui alunos cadastrados.';
+
+
+
+      _isLoading=false;
+
+      notifyListeners();
+
+
+      return false;
+
+
+    }
+
+
+
+
+    _pendingRoomId =
+        roomId;
+
+
+
+    _pendingProfessorId =
+        professorId;
+
+
+
+    _pendingProfessorName =
+        room['professorName'];
+
+
+
+    _pendingRoomCode =
+        room['code'];
+
+
+
+    _pendingRoomStudents =
+        students;
+
+
+
+    _isLoading=false;
+
     notifyListeners();
 
-    final typedName = name.trim().toLowerCase();
 
-    StudentModel? match;
-    for (final s in _pendingRoomStudents) {
-      if (s.name.trim().toLowerCase() == typedName) {
-        match = s;
-        break;
-      }
-    }
 
-    if (match == null) {
-      _errorMessage = 'Não encontramos esse nome na turma. Confira com seu professor se ele já te cadastrou (com o mesmo nome).';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
+    return true;
 
-    try {
-      // Guarda o avatar escolhido no registro que o professor já criou.
-      await FirestoreService.instance.updateStudentAvatar(
-        professorId: _pendingProfessorId!,
-        studentId: match.id,
-        avatarIndex: avatarIndex,
-      );
-      _currentStudent = match.copyWith(avatarIndex: avatarIndex);
 
-      // Salva localmente para o próximo tryAutoLogin() reconhecer esse
-      // aluno sem precisar pedir o código da sala e o nome de novo.
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kStudentProfessorIdKey, _pendingProfessorId!);
-      await prefs.setString(_kStudentIdKey, match.id);
 
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      debugPrint('Erro ao entrar na turma: $e');
-      _errorMessage = 'Erro ao entrar na turma. Tente novamente.';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
 
-  Future<void> logout() async {
-    await _auth.signOut();
-    await _googleSignIn.signOut();
+  }on FirebaseAuthException catch(e){
 
-    // Apaga a sessão de aluno salva localmente — é isso que garante que
-    // "sair" (logout) realmente exige login de novo, diferente de só
-    // fechar o app.
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_kStudentProfessorIdKey);
-    await prefs.remove(_kStudentIdKey);
 
-    _currentUser = null;
-    _currentStudent = null;
-    _pendingProfessorId = null;
-    _pendingProfessorName = null;
-    _pendingRoomCode = null;
-    _pendingRoomStudents = [];
-    _errorMessage = null;
+
+    debugPrint(
+      'Erro Firebase login sala: ${e.code}',
+    );
+
+
+    _errorMessage =
+        'Erro ao acessar sala.';
+
+
+
+    _isLoading=false;
+
     notifyListeners();
+
+
+    return false;
+
+
+
+  }catch(e){
+
+
+
+    debugPrint(
+      'Erro login sala: $e',
+    );
+
+
+
+    _errorMessage =
+        'Erro ao entrar na sala.';
+
+
+
+    _isLoading=false;
+
+    notifyListeners();
+
+
+
+    return false;
+
+
   }
 
+
+}
+// ============================================================
+// REGISTRAR PERFIL DO ALUNO NA SALA
+// ============================================================
+
+
+Future<bool> registerStudentProfile({
+
+  required String name,
+
+  required String avatarIndex,
+
+}) async {
+
+
+
+  if(
+    _pendingRoomId == null ||
+    _pendingProfessorId == null
+  ){
+
+    return false;
+
+  }
+
+
+
+  _isLoading = true;
+
+  _errorMessage = null;
+
+  notifyListeners();
+
+
+
+
+  final typedName =
+      name.trim().toLowerCase();
+
+
+
+
+  StudentModel? match;
+
+
+
+  for(final student in _pendingRoomStudents){
+
+
+    if(
+      student.name
+          .trim()
+          .toLowerCase() ==
+      typedName
+    ){
+
+      match = student;
+
+      break;
+
+    }
+
+
+  }
+
+
+
+
+  if(match == null){
+
+
+    _errorMessage =
+        'Aluno não encontrado nesta sala.';
+
+
+
+    _isLoading=false;
+
+    notifyListeners();
+
+
+    return false;
+
+
+  }
+
+
+
+
+
+  try {
+
+
+
+    await _db.updateStudentAvatar(
+
+      roomId:
+          _pendingRoomId!,
+
+      studentId:
+          match.id,
+
+      avatarIndex:
+          avatarIndex,
+
+    );
+
+
+
+
+
+    _currentStudent =
+        match.copyWith(
+
+          avatarIndex:
+              avatarIndex,
+
+        );
+
+
+
+
+
+    // Recupera sala atual
+
+    final room =
+        await _db.roomDocById(
+          _pendingRoomId!,
+        )
+        .get();
+
+
+
+
+    if(room.exists){
+
+
+      _currentRoom =
+          RoomModel.fromFirestore(
+            room,
+          );
+
+
+    }
+
+
+
+
+
+
+    // Salva sessão do aluno
+
+
+    final prefs =
+        await SharedPreferences
+            .getInstance();
+
+
+
+
+    await prefs.setString(
+
+      _kStudentRoomIdKey,
+
+      _pendingRoomId!,
+
+    );
+
+
+
+   await prefs.setString(
+
+  _kStudentRoomIdKey,
+
+  _pendingRoomId!,
+
+);
+
+
+await prefs.setString(
+
+  _kStudentIdKey,
+
+  match.id,
+
+);
+
+
+
+
+
+
+    _isLoading=false;
+
+
+    notifyListeners();
+
+
+
+    return true;
+
+
+
+
+  }catch(e){
+
+
+    debugPrint(
+      'Erro registro aluno: $e',
+    );
+
+
+    _errorMessage =
+        'Erro ao entrar na turma.';
+
+
+
+    _isLoading=false;
+
+
+    notifyListeners();
+
+
+
+    return false;
+
+
+  }
+
+
+}
+// ============================================================
+// LOGOUT
+// ============================================================
+
+
+Future<void> logout() async {
+
+
+  await _auth.signOut();
+
+
+  await _googleSignIn.signOut();
+
+
+
+
+  final prefs =
+      await SharedPreferences
+          .getInstance();
+
+
+
+
+await prefs.remove(
+  _kStudentRoomIdKey,
+);
+
+
+await prefs.remove(
+  _kStudentIdKey,
+);
+
+
+  await prefs.remove(
+    _kProfessorRoomKey,
+  );
+
+
+
+
+
+  _currentUser = null;
+
+
+  _currentStudent = null;
+
+
+  _currentRoom = null;
+
+
+
+  _pendingRoomId = null;
+
+
+  _pendingProfessorId = null;
+
+
+  _pendingProfessorName = null;
+
+
+  _pendingRoomCode = null;
+
+
+  _pendingRoomStudents = [];
+
+
+
+  _errorMessage = null;
+
+
+
+  notifyListeners();
+
+
+}
   void clearError() {
     _errorMessage = null;
     notifyListeners();

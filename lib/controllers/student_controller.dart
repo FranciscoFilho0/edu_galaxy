@@ -33,18 +33,18 @@ class StudentController extends ChangeNotifier {
   /// Carrega os jogos ativados pelo professor daquela sala e os resultados
   /// já registrados por este aluno específico.
   Future<void> loadGames({
-    required String professorId,
+    required String roomId,
     required String studentId,
   }) async {
-    if (professorId.isEmpty) return;
+    if (roomId.isEmpty) return;
     _isLoading = true;
     notifyListeners();
 
     try {
-      final activation = await _db.fetchGamesActivation(professorId);
+      final activation = await _db.fetchGamesActivation(roomId: roomId);
       _availableGames = GameModel.allGames.where((g) => activation[g.id] ?? true).toList();
 
-      final allResults = await _db.fetchResults(professorId);
+      final allResults = await _db.fetchResults(roomId: roomId);
       _myResults = allResults.where((r) => r.studentId == studentId).toList();
     } catch (e) {
       debugPrint('Erro ao carregar jogos do aluno: $e');
@@ -57,11 +57,11 @@ class StudentController extends ChangeNotifier {
   /// Registra o resultado de uma partida no banco, já vinculado à sala do
   /// professor correto, e atualiza a lista local para refletir na hora.
   Future<void> saveResult({
-    required String professorId,
+    required String roomId,
     required GameResultModel result,
   }) async {
     try {
-      await _db.saveResult(professorId: professorId, result: result);
+      await _db.saveResult(roomId: roomId, result: result);
       _myResults = [result, ..._myResults];
       notifyListeners();
     } catch (e) {
@@ -72,12 +72,12 @@ class StudentController extends ChangeNotifier {
   /// Monta o ranking da turma: pega todos os alunos daquela sala, soma as
   /// estrelas (acertos) de cada um em todos os jogos, e ordena do maior
   /// para o menor. Sempre da sala do professor certo — nunca mistura turmas.
-  Future<void> loadRanking(String professorId) async {
-    if (professorId.isEmpty) return;
+  Future<void> loadRanking(String roomId) async {
+    if (roomId.isEmpty) return;
 
     try {
-      final students = await _db.fetchStudents(professorId);
-      final results = await _db.fetchResults(professorId);
+      final students = await _db.fetchStudents(roomId: roomId);
+      final results = await _db.fetchResults(roomId: roomId);
 
       final starsByStudent = <String, int>{};
       for (final r in results) {

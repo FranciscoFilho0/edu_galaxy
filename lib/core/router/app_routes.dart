@@ -16,6 +16,8 @@ class AppRoutes {
   static const String professorStudentDetail = '/professor/students/:studentId';
   static const String professorSettings = '/professor/settings';
 
+  static const selectRoom = '/select-room';
+  static const createRoom = '/create-room';
   /// Monta a URL da tela de detalhe substituindo o :studentId pelo id real.
   static String professorStudentDetailPath(String studentId) =>
       '/professor/students/$studentId';

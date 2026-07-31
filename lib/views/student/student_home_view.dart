@@ -29,10 +29,10 @@ class _StudentHomeViewState extends State<StudentHomeView> {
       // Sempre buscamos os jogos ativos e as perguntas/palavras da sala
       // do professor deste aluno (student.professorId) — nunca de outra sala.
       context.read<StudentController>().loadGames(
-            professorId: student.professorId,
+            roomId: student.roomId,
             studentId: student.id,
           );
-      context.read<GameContentController>().loadContent(student.professorId);
+      context.read<GameContentController>().loadContent(student.roomId, professorId: student.professorId);
     });
   }
 

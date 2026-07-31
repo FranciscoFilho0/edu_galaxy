@@ -9,6 +9,7 @@ import 'controllers/game_content_controller.dart';
 import 'controllers/settings_controller.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'controllers/current_room_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,20 +25,37 @@ void main() async {
   
   runApp(
     MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthController()),
-        ChangeNotifierProvider(create: (_) => ProfessorController()),
-        ChangeNotifierProvider(create: (_) => StudentController()),
-        // O conteúdo dos jogos agora é por sala/professor, então só é carregado
-        // depois do login (professor) ou depois de entrar na turma (aluno) —
-        // veja professor_dashboard_view.dart e student_home_view.dart.
-        ChangeNotifierProvider(create: (_) => GameContentController()),
-        // Preferências persistidas do app: volume de música/voz e modo
-        // noturno do professor. Carrega do dispositivo assim que o app abre.
-        ChangeNotifierProvider(create: (_) => SettingsController()),
-      ],
-      child: const EduGalaxyApp(),
+  providers: [
+
+    ChangeNotifierProvider(
+      create: (_) => AuthController(),
     ),
+
+    ChangeNotifierProvider(
+      create: (_) => ProfessorController(),
+    ),
+
+    ChangeNotifierProvider(
+      create: (_) => CurrentRoomController(),
+    ),
+
+    ChangeNotifierProvider(
+      create: (_) => StudentController(),
+    ),
+
+    ChangeNotifierProvider(
+      create: (_) => GameContentController(),
+    ),
+
+    ChangeNotifierProvider(
+      create: (_) => SettingsController(),
+    ),
+
+  ],
+
+  child: const EduGalaxyApp(),
+
+),
   );
 }
 

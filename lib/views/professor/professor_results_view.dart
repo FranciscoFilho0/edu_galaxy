@@ -78,7 +78,7 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
       body: Column(
         children: [
           Container(
-            color: Colors.white,
+            color: AppTheme.profSurface,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -94,7 +94,11 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
                       selectedColor: AppTheme.profPrimary.withOpacity(0.15),
                       checkmarkColor: AppTheme.profPrimary,
                       labelStyle: TextStyle(
-                        color: active ? AppTheme.profPrimary : Colors.grey.shade700,
+                        color: active
+                            ? AppTheme.profPrimary
+                            : (AppTheme.professorDarkMode
+                                ? AppTheme.profOnSurface.withOpacity(0.7)
+                                : Colors.grey.shade700),
                         fontWeight: active ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
@@ -105,7 +109,7 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
           ),
           if (months.isNotEmpty)
             Container(
-              color: Colors.white,
+              color: AppTheme.profSurface,
               padding: const EdgeInsets.only(left: 16, right: 16, bottom: 10),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -117,7 +121,11 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
                         avatar: Icon(
                           Icons.calendar_today,
                           size: 14,
-                          color: _selectedMonth == null ? AppTheme.profPrimary : Colors.grey.shade600,
+                          color: _selectedMonth == null
+                              ? AppTheme.profPrimary
+                              : (AppTheme.professorDarkMode
+                                  ? AppTheme.profOnSurface.withOpacity(0.6)
+                                  : Colors.grey.shade600),
                         ),
                         label: const Text('Todos os meses'),
                         selected: _selectedMonth == null,
@@ -125,7 +133,11 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
                         selectedColor: AppTheme.profPrimary.withOpacity(0.15),
                         checkmarkColor: AppTheme.profPrimary,
                         labelStyle: TextStyle(
-                          color: _selectedMonth == null ? AppTheme.profPrimary : Colors.grey.shade700,
+                          color: _selectedMonth == null
+                              ? AppTheme.profPrimary
+                              : (AppTheme.professorDarkMode
+                                  ? AppTheme.profOnSurface.withOpacity(0.7)
+                                  : Colors.grey.shade700),
                           fontWeight: _selectedMonth == null ? FontWeight.w600 : FontWeight.normal,
                         ),
                       ),
@@ -141,7 +153,11 @@ class _ProfessorResultsViewState extends State<ProfessorResultsView> {
                           selectedColor: AppTheme.profPrimary.withOpacity(0.15),
                           checkmarkColor: AppTheme.profPrimary,
                           labelStyle: TextStyle(
-                            color: active ? AppTheme.profPrimary : Colors.grey.shade700,
+                            color: active
+                                ? AppTheme.profPrimary
+                                : (AppTheme.professorDarkMode
+                                    ? AppTheme.profOnSurface.withOpacity(0.7)
+                                    : Colors.grey.shade700),
                             fontWeight: active ? FontWeight.w600 : FontWeight.normal,
                           ),
                         ),

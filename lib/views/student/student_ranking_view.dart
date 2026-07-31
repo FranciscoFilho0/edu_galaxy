@@ -28,7 +28,7 @@ class _StudentRankingViewState extends State<StudentRankingView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final student = context.read<AuthController>().currentStudent;
       if (student == null) return;
-      context.read<StudentController>().loadRanking(student.professorId);
+      context.read<StudentController>().loadRanking(student.roomId);
     });
   }
 
@@ -45,7 +45,7 @@ class _StudentRankingViewState extends State<StudentRankingView> {
           onRefresh: () async {
             final student = context.read<AuthController>().currentStudent;
             if (student != null) {
-              await context.read<StudentController>().loadRanking(student.professorId);
+              await context.read<StudentController>().loadRanking(student.roomId);
             }
           },
           child: ranking.isEmpty

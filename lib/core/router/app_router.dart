@@ -34,6 +34,8 @@ import '../../views/casual_games/memory_game_view.dart';
 import '../../views/casual_games/tetris_view.dart';
 import '../../views/casual_games/block_blast_view.dart';
 import '../../services/audio_service.dart';
+import '../../views/professor/select_room_view.dart';
+import '../../views/professor/create_room_view.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -48,7 +50,9 @@ GoRouter createRouter() {
         builder: (context, state) => const SplashView(),
       ),
 
-      // ── Auth ──────────────────────────────────────────────────────────────
+      // ── Auth ───────────────────────────────────────────────────────
+      //
+
       GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const LoginView(),
@@ -71,8 +75,23 @@ GoRouter createRouter() {
       ),
 
       // ── Professor (ShellRoute for bottom nav) ────────────────────────────
+      GoRoute(
+        path: AppRoutes.selectRoom,
+        builder: (context, state) {
+          return const SelectRoomView();
+        },
+      ),
+
+      GoRoute(
+        path: AppRoutes.createRoom,
+        builder: (context, state) {
+          return const CreateRoomView();
+        },
+      ),
+
       ShellRoute(
-        builder: (context, state, child) => ProfessorShell(child: child, state: state),
+        builder: (context, state, child) =>
+            ProfessorShell(child: child, state: state),
         routes: [
           GoRoute(
             path: AppRoutes.professorDashboard,
@@ -107,7 +126,8 @@ GoRouter createRouter() {
 
       // ── Student (ShellRoute for bottom nav) ──────────────────────────────
       ShellRoute(
-        builder: (context, state, child) => StudentShell(child: child, state: state),
+        builder: (context, state, child) =>
+            StudentShell(child: child, state: state),
         routes: [
           GoRoute(
             path: AppRoutes.studentHome,
@@ -189,11 +209,13 @@ GoRouter createRouter() {
       ),
       GoRoute(
         path: AppRoutes.professorEditSpelling,
-        builder: (context, state) => const WordListEditorView(type: WordListType.spelling),
+        builder: (context, state) =>
+            const WordListEditorView(type: WordListType.spelling),
       ),
       GoRoute(
         path: AppRoutes.professorEditSyllables,
-        builder: (context, state) => const WordListEditorView(type: WordListType.syllables),
+        builder: (context, state) =>
+            const WordListEditorView(type: WordListType.syllables),
       ),
       GoRoute(
         path: AppRoutes.professorEditMath,
@@ -228,19 +250,35 @@ class ProfessorShell extends StatelessWidget {
         selectedIndex: idx,
         onDestinationSelected: (i) {
           switch (i) {
-            case 0: context.go(AppRoutes.professorDashboard);
-            case 1: context.go(AppRoutes.professorResults);
-            case 2: context.go(AppRoutes.professorStudents);
-            case 3: context.go(AppRoutes.professorGames);
+            case 0:
+              context.go(AppRoutes.professorDashboard);
+            case 1:
+              context.go(AppRoutes.professorResults);
+            case 2:
+              context.go(AppRoutes.professorStudents);
+            case 3:
+              context.go(AppRoutes.professorGames);
           }
         },
         backgroundColor: theme.colorScheme.surface,
         indicatorColor: theme.colorScheme.primary.withOpacity(0.15),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Início'),
-          NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'Resultados'),
-          NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people), label: 'Alunos'),
-          NavigationDestination(icon: Icon(Icons.games_outlined), selectedIcon: Icon(Icons.games), label: 'Jogos'),
+          NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Início'),
+          NavigationDestination(
+              icon: Icon(Icons.bar_chart_outlined),
+              selectedIcon: Icon(Icons.bar_chart),
+              label: 'Resultados'),
+          NavigationDestination(
+              icon: Icon(Icons.people_outlined),
+              selectedIcon: Icon(Icons.people),
+              label: 'Alunos'),
+          NavigationDestination(
+              icon: Icon(Icons.games_outlined),
+              selectedIcon: Icon(Icons.games),
+              label: 'Jogos'),
         ],
       ),
     );
@@ -301,21 +339,28 @@ class _StudentShellState extends State<StudentShell> {
           indicatorColor: const Color(0xFF7C3AED).withOpacity(0.3),
           onDestinationSelected: (i) {
             switch (i) {
-              case 0: context.go(AppRoutes.studentHome);
-              case 1: context.go(AppRoutes.studentGameSelect);
-              case 2: context.go(AppRoutes.studentRanking);
-              case 3: context.go(AppRoutes.studentCasualGames);
+              case 0:
+                context.go(AppRoutes.studentHome);
+              case 1:
+                context.go(AppRoutes.studentGameSelect);
+              case 2:
+                context.go(AppRoutes.studentRanking);
+              case 3:
+                context.go(AppRoutes.studentCasualGames);
             }
           },
           destinations: const [
             NavigationDestination(
-              icon: Icon(Icons.rocket_launch_outlined, color: Color(0xFF89B4FA)),
+              icon:
+                  Icon(Icons.rocket_launch_outlined, color: Color(0xFF89B4FA)),
               selectedIcon: Icon(Icons.rocket_launch, color: Color(0xFFB45AF2)),
               label: 'Base',
             ),
             NavigationDestination(
-              icon: Icon(Icons.videogame_asset_outlined, color: Color(0xFF89B4FA)),
-              selectedIcon: Icon(Icons.videogame_asset, color: Color(0xFFB45AF2)),
+              icon: Icon(Icons.videogame_asset_outlined,
+                  color: Color(0xFF89B4FA)),
+              selectedIcon:
+                  Icon(Icons.videogame_asset, color: Color(0xFFB45AF2)),
               label: 'Jogos',
             ),
             NavigationDestination(

@@ -1,51 +1,254 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class StudentModel {
   final String id;
-  final String name;
+
+  /// Sala onde o aluno pertence
+  final String roomId;
+
+  /// Código público da sala
   final String roomCode;
-  final String avatarIndex;
-  // ID do professor dono da sala. É esse campo que garante que os dados
-  // de um aluno fiquem sempre vinculados ao professor certo no banco.
+
+  /// Professor dono da sala
   final String professorId;
+
+  final String name;
+
+  final String avatarIndex;
+
+  final DateTime createdAt;
+
 
   const StudentModel({
     required this.id,
-    required this.name,
+    required this.roomId,
     required this.roomCode,
-    required this.avatarIndex,
     required this.professorId,
+    required this.name,
+    required this.avatarIndex,
+    required this.createdAt,
   });
 
-  factory StudentModel.fromMap(Map<String, dynamic> map) {
+
+
+  // ============================================================
+  // FIRESTORE
+  // ============================================================
+
+  factory StudentModel.fromFirestore(
+    String id,
+    Map<String, dynamic> map,
+  ) {
+
     return StudentModel(
-      id: map['id'] ?? '',
-      name: map['name'] ?? '',
-      roomCode: map['roomCode'] ?? '',
-      avatarIndex: map['avatarIndex'] ?? '0',
-      professorId: map['professorId'] ?? '',
+
+      id: id,
+
+
+      roomId:
+          map['roomId'] ??
+          '',
+
+
+      roomCode:
+          map['roomCode'] ??
+          '',
+
+
+      professorId:
+          map['professorId'] ??
+          '',
+
+
+      name:
+          map['name'] ??
+          '',
+
+
+      avatarIndex:
+          map['avatarIndex'] ??
+          '0',
+
+
+      createdAt:
+          _parseDate(
+            map['createdAt'],
+          ),
+
     );
+
   }
 
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'name': name,
-        'roomCode': roomCode,
-        'avatarIndex': avatarIndex,
-        'professorId': professorId,
-      };
+
+
+
+
+  // Compatibilidade com código antigo
+  factory StudentModel.fromMap(
+    Map<String,dynamic> map,
+  ){
+
+    return StudentModel(
+
+      id:
+          map['id'] ??
+          '',
+
+
+      roomId:
+          map['roomId'] ??
+          '',
+
+
+      roomCode:
+          map['roomCode'] ??
+          '',
+
+
+      professorId:
+          map['professorId'] ??
+          '',
+
+
+      name:
+          map['name'] ??
+          '',
+
+
+      avatarIndex:
+          map['avatarIndex'] ??
+          '0',
+
+
+      createdAt:
+          _parseDate(
+            map['createdAt'],
+          ),
+
+    );
+
+  }
+
+
+
+
+
+
+  static DateTime _parseDate(dynamic value) {
+    if (value == null) {
+      return DateTime.now();
+    }
+
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+
+    return DateTime.now();
+  }
+
+
+
+
+  Map<String,dynamic> toMap(){
+
+    return {
+
+
+      'roomId':
+          roomId,
+
+
+      'roomCode':
+          roomCode,
+
+
+      'professorId':
+          professorId,
+
+
+      'name':
+          name,
+
+
+      'avatarIndex':
+          avatarIndex,
+
+
+      'createdAt':
+          createdAt.toIso8601String(),
+
+    };
+
+  }
+
+
+
+
+
+
 
   StudentModel copyWith({
+
     String? id,
-    String? name,
+
+    String? roomId,
+
     String? roomCode,
-    String? avatarIndex,
+
     String? professorId,
-  }) {
+
+    String? name,
+
+    String? avatarIndex,
+
+    DateTime? createdAt,
+
+  }){
+
+
     return StudentModel(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      roomCode: roomCode ?? this.roomCode,
-      avatarIndex: avatarIndex ?? this.avatarIndex,
-      professorId: professorId ?? this.professorId,
+
+      id:
+          id ??
+          this.id,
+
+
+      roomId:
+          roomId ??
+          this.roomId,
+
+
+      roomCode:
+          roomCode ??
+          this.roomCode,
+
+
+      professorId:
+          professorId ??
+          this.professorId,
+
+
+      name:
+          name ??
+          this.name,
+
+
+      avatarIndex:
+          avatarIndex ??
+          this.avatarIndex,
+
+
+      createdAt:
+          createdAt ??
+          this.createdAt,
+
     );
+
   }
+
+
 }

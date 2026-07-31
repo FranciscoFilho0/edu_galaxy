@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/router/app_routes.dart';
 import 'widgets/auth_shared_widgets.dart';
+import '../professor/select_room_view.dart';
 
 /// Tela de login/cadastro exclusiva do professor.
 ///
@@ -153,7 +154,7 @@ class _ProfessorLoginViewState extends State<ProfessorLoginView> {
                           onTap: () async {
                             if (_mode == 0) {
                               final ok = await auth.loginProfessor(_emailCtrl.text, _passwordCtrl.text);
-                              if (ok && context.mounted) context.go(AppRoutes.professorDashboard);
+                              if (ok && context.mounted) context.go(AppRoutes.selectRoom);
                             } else {
                               if (_passwordCtrl.text != _confirmCtrl.text) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -162,7 +163,9 @@ class _ProfessorLoginViewState extends State<ProfessorLoginView> {
                                 return;
                               }
                               final ok = await auth.registerProfessor(_nameCtrl.text, _emailCtrl.text, _passwordCtrl.text);
-                              if (ok && context.mounted) context.go(AppRoutes.professorDashboard);
+                              if (ok && context.mounted) {
+  context.go(AppRoutes.selectRoom);
+}
                             }
                           },
                         ),
@@ -186,7 +189,7 @@ class _ProfessorLoginViewState extends State<ProfessorLoginView> {
                           isLoading: auth.isLoading,
                           onTap: () async {
                             final ok = await auth.loginWithGoogle();
-                            if (ok && context.mounted) context.go(AppRoutes.professorDashboard);
+                            if (ok && context.mounted) context.go(AppRoutes.selectRoom);
                           },
                         ),
 

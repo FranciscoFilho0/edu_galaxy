@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../controllers/game_content_controller.dart';
-import '../../../controllers/auth_controller.dart';
+import '../../../controllers/professor_controller.dart';
 import '../../../models/quiz_question_model.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/subjects.dart';
@@ -14,7 +14,7 @@ class QuizEditorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = context.watch<GameContentController>();
-    final professorId = context.watch<AuthController>().currentUser?.id ?? '';
+    final roomId = context.watch<ProfessorController>().room?.id ?? '';
 
     return Scaffold(
       backgroundColor: AppTheme.profBackground,
@@ -33,7 +33,7 @@ class QuizEditorView extends StatelessWidget {
                 return _QuestionCard(
                   question: q,
                   onEdit: () => _showEditDialog(context, q),
-                  onDelete: () => content.removeQuizQuestion(professorId, q.id),
+                  onDelete: () => content.removeQuizQuestion(roomId, q.id),
                 );
               },
             ),
@@ -48,7 +48,9 @@ class QuizEditorView extends StatelessWidget {
 
   void _showEditDialog(BuildContext context, QuizQuestionModel? existing) {
     final content = context.read<GameContentController>();
-    final professorId = context.read<AuthController>().currentUser?.id ?? '';
+    final room = context.read<ProfessorController>().room;
+    final roomId = room?.id ?? '';
+    final professorId = room?.professorId ?? '';
     final questionCtrl = TextEditingController(text: existing?.question ?? '');
     String subject = existing?.subject ?? AppSubjects.all.first;
     final optionCtrls = List.generate(4, (i) =>
@@ -119,15 +121,17 @@ class QuizEditorView extends StatelessWidget {
                 }
                 final newQ = QuizQuestionModel(
                   id: existing?.id ?? 'q_${DateTime.now().millisecondsSinceEpoch}',
+                  roomId: roomId,
+                  professorId: professorId,
                   question: questionCtrl.text.trim(),
                   subject: subject,
                   options: optionCtrls.map((c) => c.text.trim()).toList(),
                   correctIndex: correctIndex,
                 );
                 if (existing == null) {
-                  content.addQuizQuestion(professorId, newQ);
+                  content.addQuizQuestion(roomId, newQ);
                 } else {
-                  content.updateQuizQuestion(professorId, newQ);
+                  content.updateQuizQuestion(roomId, newQ);
                 }
                 Navigator.pop(ctx);
               },

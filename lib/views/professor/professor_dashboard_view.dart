@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/professor_controller.dart';
+import '../../controllers/current_room_controller.dart';
 import '../../controllers/game_content_controller.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_theme.dart';
@@ -22,12 +23,16 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final auth = context.read<AuthController>();
       final professorId = auth.currentUser?.id ?? '';
-      await context.read<ProfessorController>().loadData(
+      final professorCtrl = context.read<ProfessorController>();
+      final selectedRoomId = context.read<CurrentRoomController>().currentRoom?.id;
+      await professorCtrl.loadData(
             professorId,
             professorName: auth.currentUser?.name ?? 'Professor',
+            roomId: selectedRoomId,
           );
       if (!mounted) return;
-      context.read<GameContentController>().loadContent(professorId);
+      final roomId = professorCtrl.room?.id ?? '';
+      context.read<GameContentController>().loadContent(roomId, professorId: professorId);
     });
   }
 
@@ -112,7 +117,11 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
       body: prof.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: () => prof.loadData(auth.currentUser?.id ?? '', professorName: auth.currentUser?.name ?? 'Professor'),
+              onRefresh: () => prof.loadData(
+                auth.currentUser?.id ?? '',
+                professorName: auth.currentUser?.name ?? 'Professor',
+                roomId: prof.room?.id ?? context.read<CurrentRoomController>().currentRoom?.id,
+              ),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(

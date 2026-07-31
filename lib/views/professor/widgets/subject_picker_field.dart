@@ -19,7 +19,7 @@ class SubjectPickerField extends StatelessWidget {
   Future<void> _openPicker(BuildContext context) async {
     final selected = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.profSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),

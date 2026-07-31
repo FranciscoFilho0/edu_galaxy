@@ -30,7 +30,8 @@ class CasualRecordsService {
 
   /// Registra o resultado de uma partida contra o computador (Jogo da
   /// Velha ou Damas) e devolve as estatísticas já atualizadas.
-  Future<CasualGameStats> recordMatchOutcome(String gameId, MatchOutcome outcome) async {
+  Future<CasualGameStats> recordMatchOutcome(
+      String gameId, MatchOutcome outcome) async {
     final current = await loadStats(gameId);
     final updated = current.withMatchOutcome(outcome);
     await _save(gameId, updated);
@@ -38,7 +39,8 @@ class CasualRecordsService {
   }
 
   /// Registra uma partida solo do Jogo da Memória.
-  Future<CasualGameStats> recordMemoryRun(String gameId, {required int moves, required int seconds}) async {
+  Future<CasualGameStats> recordMemoryRun(String gameId,
+      {required int moves, required int seconds}) async {
     final current = await loadStats(gameId);
     final updated = current.withMemoryRun(moves: moves, seconds: seconds);
     await _save(gameId, updated);

@@ -77,9 +77,11 @@ class _PerguntasGameViewState extends State<PerguntasGameView> {
         .map((a) => a.achievement.id)
         .toSet();
     studentController.saveResult(
-          professorId: student.professorId,
+          roomId: student.roomId,
           result: GameResultModel(
             id: '',
+            roomId: student.roomId,
+            professorId: student.professorId,
             studentId: student.id,
             studentName: student.name,
             gameId: 'perguntas',
