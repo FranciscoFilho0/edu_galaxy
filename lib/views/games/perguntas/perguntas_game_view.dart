@@ -8,6 +8,7 @@ import '../../../models/game_result_model.dart';
 import '../../../core/theme/app_theme.dart';
 import '../shared/game_top_bar.dart';
 import '../shared/game_result_screen.dart';
+import '../../../services/audio_service.dart';
 
 class PerguntasGameView extends StatefulWidget {
   const PerguntasGameView({super.key});
@@ -27,10 +28,15 @@ class _PerguntasGameViewState extends State<PerguntasGameView> {
   bool _answered = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadQuestions());
-  }
+  @override
+void initState() {
+  super.initState();
+
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    await AudioService().playGamesMusic();
+    _loadQuestions();
+  });
+}
 
   void _loadQuestions() {
     final content = context.read<GameContentController>();
@@ -38,30 +44,43 @@ class _PerguntasGameViewState extends State<PerguntasGameView> {
     setState(() => _questions = list.take(8).toList());
   }
 
-  void _selectAnswer(int index) {
-    if (_answered) return;
-    final correct = index == _questions[_currentIndex].correctIndex;
-    setState(() {
-      _selectedIndex = index;
-      _answered = true;
-      if (correct) _score++;
-    });
+void _selectAnswer(int index) {
+  if (_answered) return;
 
-    Future.delayed(const Duration(milliseconds: 1100), () {
-      if (!mounted) return;
-      if (_currentIndex < _questions.length - 1) {
-        setState(() {
-          _currentIndex++;
-          _selectedIndex = null;
-          _answered = false;
-        });
-      } else {
-        setState(() => _isFinished = true);
-        _saveResult();
-      }
-    });
+  final correct = index == _questions[_currentIndex].correctIndex;
+
+  setState(() {
+    _selectedIndex = index;
+    _answered = true;
+
+    if (correct) {
+      _score++;
+    }
+  });
+
+  // Executa o efeito sem bloquear a atualização da tela
+  if (correct) {
+    AudioService().playSuccess();
+  } else {
+    AudioService().playError();
   }
 
+  Future.delayed(const Duration(milliseconds: 1100), () {
+    if (!mounted) return;
+
+    if (_currentIndex < _questions.length - 1) {
+      setState(() {
+        _currentIndex++;
+        _selectedIndex = null;
+        _answered = false;
+      });
+    } else {
+      setState(() => _isFinished = true);
+      _saveResult();
+    }
+  });
+}
+  
   Set<String> _unlockedBeforeIds = {};
 
   void _saveResult() {

@@ -11,6 +11,7 @@ import '../shared/game_top_bar.dart';
 import '../shared/game_result_screen.dart';
 import '../shared/speak_button.dart';
 import '../../../services/tts_service.dart';
+import '../../../services/audio_service.dart';
 
 class SilabasGameView extends StatefulWidget {
   const SilabasGameView({super.key});
@@ -31,12 +32,16 @@ class _SilabasGameViewState extends State<SilabasGameView> {
   bool _answered = false;
   bool _isCorrect = false;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadWords());
-  }
 
+@override
+void initState() {
+  super.initState();
+
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    await AudioService().playGamesMusic();
+    _loadWords();
+  });
+}
   @override
   void dispose() {
     TtsService.instance.stop();
@@ -75,31 +80,46 @@ class _SilabasGameViewState extends State<SilabasGameView> {
     setState(() => _selectedOrder.removeAt(posInOrder));
   }
 
-  void _checkAnswer() {
-    final attempt = _selectedOrder.map((i) => _shuffledSyllables[i]).join();
-    final correctWord = _words[_currentIndex].syllables.join();
-    final correct = attempt.toUpperCase() == correctWord.toUpperCase();
+void _checkAnswer() {
+  final attempt =
+      _selectedOrder.map((i) => _shuffledSyllables[i]).join();
 
-    setState(() {
-      _answered = true;
-      _isCorrect = correct;
-      if (correct) _score++;
-    });
+  final correctWord = _words[_currentIndex].syllables.join();
 
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (!mounted) return;
-      if (_currentIndex < _words.length - 1) {
-        setState(() {
-          _currentIndex++;
-          _setupRound();
-        });
-      } else {
-        setState(() => _isFinished = true);
-        _saveResult();
-      }
-    });
+  final correct =
+      attempt.toUpperCase() == correctWord.toUpperCase();
+
+  setState(() {
+    _answered = true;
+    _isCorrect = correct;
+
+    if (correct) {
+      _score++;
+    }
+  });
+
+  // Efeito sonoro da resposta
+  if (correct) {
+    AudioService().playSuccess();
+  } else {
+    AudioService().playError();
   }
 
+  Future.delayed(const Duration(milliseconds: 1200), () {
+    if (!mounted) return;
+
+    if (_currentIndex < _words.length - 1) {
+      setState(() {
+        _currentIndex++;
+        _setupRound();
+      });
+    } else {
+      setState(() => _isFinished = true);
+      _saveResult();
+    }
+  });
+}
+ 
   Set<String> _unlockedBeforeIds = {};
 
   void _saveResult() {

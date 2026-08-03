@@ -8,6 +8,7 @@ import '../../../models/game_result_model.dart';
 import '../../../core/theme/app_theme.dart';
 import '../shared/game_top_bar.dart';
 import '../shared/game_result_screen.dart';
+import '../../../services/audio_service.dart';
 
 class _MathQuestion {
   final String expression;
@@ -38,6 +39,7 @@ class _CalculosGameViewState extends State<CalculosGameView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _generateQuestions());
+    AudioService().playGamesMusic();
   }
 
   void _generateQuestions() {
@@ -93,30 +95,49 @@ class _CalculosGameViewState extends State<CalculosGameView> {
     setState(() {});
   }
 
-  void _selectAnswer(int value) {
-    if (_answered) return;
-    setState(() {
-      _selectedOption = value;
-      _answered = true;
-      if (value == _questions[_currentIndex].answer) _score++;
-    });
+Future<void> _selectAnswer(int value) async {
+  if (_answered) return;
 
-    Future.delayed(const Duration(milliseconds: 900), () {
-      if (!mounted) return;
-      if (_currentIndex < totalQuestions - 1) {
-        setState(() {
-          _currentIndex++;
-          _selectedOption = null;
-          _answered = false;
-        });
-      } else {
-        setState(() => _isFinished = true);
-        _saveResult();
-      }
-    });
+  final isCorrect = value == _questions[_currentIndex].answer;
+
+  // Efeito sonoro separado da música de fundo
+  if (isCorrect) {
+    await AudioService().playSuccess();
+  } else {
+    await AudioService().playError();
   }
 
-  Set<String> _unlockedBeforeIds = {};
+  if (!mounted) return;
+
+  setState(() {
+    _selectedOption = value;
+    _answered = true;
+
+    if (isCorrect) {
+      _score++;
+    }
+  });
+
+  Future.delayed(const Duration(milliseconds: 900), () {
+    if (!mounted) return;
+
+    if (_currentIndex < totalQuestions - 1) {
+      setState(() {
+        _currentIndex++;
+        _selectedOption = null;
+        _answered = false;
+      });
+    } else {
+      setState(() {
+        _isFinished = true;
+      });
+
+      _saveResult();
+    }
+  });
+}
+
+ Set<String> _unlockedBeforeIds = {};
 
   void _saveResult() {
     final auth = context.read<AuthController>();
@@ -160,6 +181,13 @@ class _CalculosGameViewState extends State<CalculosGameView> {
     });
     _generateQuestions();
   }
+
+  @override
+void dispose() {
+  // Não usamos AudioService.stop() aqui porque ele desligaria
+  // a música global dos jogos.
+  super.dispose();
+}
 
   @override
   Widget build(BuildContext context) {

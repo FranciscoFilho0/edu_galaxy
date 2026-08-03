@@ -4,91 +4,334 @@ import 'package:audioplayers/audioplayers.dart';
 /// Faixas de música de fundo disponíveis no app.
 enum BackgroundTrack { studentHome, games }
 
-/// Controla a música de fundo do app (telas do aluno x telas de jogos).
+/// Serviço central de áudio do EduGalaxy.
 ///
-/// É um singleton: existe um único player tocando em loop durante todo o
-/// app, e trocamos a faixa (ou paramos) conforme o aluno navega entre a
-/// área inicial e os jogos.
+/// Possui:
+/// - Player exclusivo para música de fundo.
+/// - Player exclusivo para efeitos sonoros.
+///
+/// Os dois funcionam simultaneamente.
 class AudioService {
   AudioService._internal();
+
   static final AudioService _instance = AudioService._internal();
+
   factory AudioService() => _instance;
 
-  final AudioPlayer _player = AudioPlayer();
 
-  static const String _studentHomeAsset = 'audio/fundo-inicial.mp3';
-  static const String _gamesAsset = 'audio/fundo-jogos.mp3';
+  // ===========================================================
+  // PLAYERS
+  // ===========================================================
+
+  final AudioPlayer _backgroundPlayer = AudioPlayer();
+
+  final AudioPlayer _sfxPlayer = AudioPlayer();
+
+
+  // ===========================================================
+  // ASSETS
+  // ===========================================================
+
+  static const String _studentHomeAsset =
+      'audio/fundo-inicial.mp3';
+
+  static const String _gamesAsset =
+      'audio/fundo-jogos.mp3';
+
+
+  static const String _successAsset =
+      'audio/success.mp3';
+
+  static const String _errorAsset =
+      'audio/error.mp3';
+
+  static const String _congratulationsAsset =
+      'audio/congratulations.mp3';
+
+
+  // ===========================================================
+  // CONTROLE
+  // ===========================================================
 
   BackgroundTrack? _currentTrack;
+
   bool _muted = false;
+
   double _volume = 0.5;
 
+
   bool get isMuted => _muted;
+
   double get volume => _volume;
 
-  /// Define o volume da música de fundo (0.0 a 1.0) e aplica imediatamente
-  /// se alguma faixa já estiver tocando. Quem persiste essa escolha entre
-  /// sessões é o `SettingsController`.
-  Future<void> setVolume(double volume) async {
-    _volume = volume.clamp(0.0, 1.0);
-    if (!_muted && _currentTrack != null) {
-      await _player.setVolume(_volume);
-    }
+
+
+  // ===========================================================
+  // CONFIGURAÇÃO INICIAL
+  // ===========================================================
+
+  Future<void> initialize() async {
+
+    await _backgroundPlayer.setReleaseMode(
+      ReleaseMode.loop,
+    );
+
+
+    await _backgroundPlayer.setVolume(
+      _volume,
+    );
+
+
+    // Permite tocar efeitos junto com a música
+    await _sfxPlayer.setAudioContext(
+      AudioContext(
+        android: AudioContextAndroid(
+          isSpeakerphoneOn: true,
+          stayAwake: false,
+          contentType: AndroidContentType.sonification,
+          usageType: AndroidUsageType.game,
+          audioFocus: AndroidAudioFocus.none,
+        ),
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.ambient,
+          options: {
+            AVAudioSessionOptions.mixWithOthers,
+          },
+        ),
+      ),
+    );
+
+
+    debugPrint(
+      "AudioService inicializado",
+    );
   }
 
-  /// Toca a música da área do aluno (telas com o menu inferior: Base,
-  /// Jogos, Ranking, Diversão), em loop.
-  Future<void> playStudentHomeMusic() =>
-      _play(BackgroundTrack.studentHome, _studentHomeAsset);
 
-  /// Toca a música das telas de jogo (jogos pedagógicos e casuais), em loop.
-  Future<void> playGamesMusic() => _play(BackgroundTrack.games, _gamesAsset);
 
-  Future<void> _play(BackgroundTrack track, String asset) async {
-    debugPrint('AudioService: pedido para tocar "$asset" (faixa atual: $_currentTrack)');
+  // ===========================================================
+  // MÚSICA DE FUNDO
+  // ===========================================================
 
-    // Evita reiniciar a mesma faixa ao navegar entre telas do mesmo grupo.
+
+  Future<void> playStudentHomeMusic() {
+
+    return _play(
+      BackgroundTrack.studentHome,
+      _studentHomeAsset,
+    );
+
+  }
+
+
+
+  Future<void> playGamesMusic() {
+
+    return _play(
+      BackgroundTrack.games,
+      _gamesAsset,
+    );
+
+  }
+
+
+
+  Future<void> _play(
+    BackgroundTrack track,
+    String asset,
+  ) async {
+
+
     if (_currentTrack == track) {
-      debugPrint('AudioService: "$asset" já é a faixa atual, ignorando.');
       return;
     }
+
+
     _currentTrack = track;
 
+
     if (_muted) {
-      debugPrint('AudioService: está mutado, não vai tocar "$asset".');
       return;
     }
+
+
 
     try {
-      await _player.stop();
-      await _player.setReleaseMode(ReleaseMode.loop);
-      await _player.setVolume(_volume);
-      await _player.play(AssetSource(asset));
-      debugPrint('AudioService: play() de "$asset" concluído sem erro.');
-    } catch (e) {
-      // TEMPORÁRIO para diagnóstico: mostra no console por que a música
-      // não tocou (arquivo não encontrado, formato inválido, etc.).
-      // Depois de resolver, pode voltar a deixar isso silencioso.
-      debugPrint('AudioService: falha ao tocar "$asset" -> $e');
+
+      await _backgroundPlayer.stop();
+
+
+      await _backgroundPlayer.setReleaseMode(
+        ReleaseMode.loop,
+      );
+
+
+      await _backgroundPlayer.setVolume(
+        _volume,
+      );
+
+
+      await _backgroundPlayer.play(
+        AssetSource(asset),
+      );
+
+
+      debugPrint(
+        "Música iniciada: $asset",
+      );
+
+
+    } catch(e){
+
+      debugPrint(
+        "Erro música: $e",
+      );
+
     }
+
   }
 
-  /// Para a música de fundo (ex.: ao sair da área do aluno/jogos).
-  Future<void> stop() async {
-    _currentTrack = null;
-    await _player.stop();
+
+
+  // ===========================================================
+  // EFEITOS SONOROS
+  // ===========================================================
+
+
+  Future<void> _playEffect(
+    String asset,
+  ) async {
+
+    try {
+
+
+      await _sfxPlayer.stop();
+
+
+      await _sfxPlayer.play(
+        AssetSource(asset),
+      );
+
+
+    } catch(e){
+
+      debugPrint(
+        "Erro efeito $asset : $e",
+      );
+
+    }
+
   }
 
-  /// Muta/desmuta a música de fundo sem perder qual faixa deveria tocar.
-  Future<void> setMuted(bool muted) async {
+
+
+  Future<void> playSuccess() {
+
+    return _playEffect(
+      _successAsset,
+    );
+
+  }
+
+
+
+  Future<void> playError() {
+
+    return _playEffect(
+      _errorAsset,
+    );
+
+  }
+
+
+
+  Future<void> playCongratulations() {
+
+    return _playEffect(
+      _congratulationsAsset,
+    );
+
+  }
+
+
+
+  // ===========================================================
+  // VOLUME / MUDO
+  // ===========================================================
+
+
+  Future<void> setVolume(
+    double value,
+  ) async {
+
+    _volume =
+        value.clamp(0.0, 1.0);
+
+
+    if(!_muted){
+
+      await _backgroundPlayer.setVolume(
+        _volume,
+      );
+
+    }
+
+  }
+
+
+
+
+  Future<void> setMuted(
+    bool muted,
+  ) async {
+
+
     _muted = muted;
-    if (muted) {
-      await _player.stop();
+
+
+    if(muted){
+
+      await _backgroundPlayer.pause();
+
       return;
+
     }
-    final track = _currentTrack;
-    if (track == null) return;
-    _currentTrack = null; // força o _play a tocar de novo
-    await _play(track, track == BackgroundTrack.studentHome ? _studentHomeAsset : _gamesAsset);
+
+
+
+    if(_currentTrack != null){
+
+      await _backgroundPlayer.resume();
+
+    }
+
   }
+
+
+
+
+  Future<void> stop() async {
+
+    _currentTrack = null;
+
+    await _backgroundPlayer.stop();
+
+  }
+
+
+
+
+  // ===========================================================
+  // FINALIZAÇÃO
+  // ===========================================================
+
+
+  Future<void> dispose() async {
+
+    await _backgroundPlayer.dispose();
+
+    await _sfxPlayer.dispose();
+
+  }
+
 }

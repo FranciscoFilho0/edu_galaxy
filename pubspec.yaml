@@ -34,7 +34,7 @@ flutter:
     - assets/audio/fundo-inicial.mp3
     - assets/audio/fundo-jogos.mp3
     - assets/audio/success.mp3
-    - assets/audio/error.mp3
+    - assets\audio\error.mp3
     - assets/audio/congratulations.mp3
 
 flutter_launcher_icons:

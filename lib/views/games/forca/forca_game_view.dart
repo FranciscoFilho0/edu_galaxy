@@ -10,6 +10,7 @@ import '../shared/game_top_bar.dart';
 import '../shared/game_result_screen.dart';
 import '../shared/speak_button.dart';
 import '../../../services/tts_service.dart';
+import '../../../services/audio_service.dart';
 
 class ForcaGameView extends StatefulWidget {
   const ForcaGameView({super.key});
@@ -36,17 +37,26 @@ class _ForcaGameViewState extends State<ForcaGameView> {
   bool _roundOver = false;
   bool _roundWon = false;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadWords());
-  }
+@override
+void initState() {
+  super.initState();
 
-  @override
-  void dispose() {
-    TtsService.instance.stop();
-    super.dispose();
-  }
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    // Inicia a música de fundo dos jogos
+    await AudioService().playGamesMusic();
+
+    _loadWords();
+  });
+}
+
+@override
+void dispose() {
+  // Para somente o texto falado.
+  // Não interfere na música de fundo.
+  TtsService.instance.stop();
+
+  super.dispose();
+}
 
   void _loadWords() {
     final content = context.read<GameContentController>();
@@ -73,45 +83,64 @@ class _ForcaGameViewState extends State<ForcaGameView> {
     _roundWon = false;
   }
 
-  void _guessLetter(String letter) {
-    if (_roundOver || _guessedLetters.contains(letter)) return;
-    final word = _words[_currentIndex].word.toUpperCase();
+Future<void> _guessLetter(String letter) async {
+  if (_roundOver || _guessedLetters.contains(letter)) return;
 
-    setState(() {
-      _guessedLetters.add(letter);
-      if (!word.contains(letter)) {
-        _mistakes++;
-      }
+  final word = _words[_currentIndex].word.toUpperCase();
+  final isCorrect = word.contains(letter);
 
-      final allRevealed = word.split('').every((c) => _guessedLetters.contains(c));
-      if (allRevealed) {
-        _roundOver = true;
-        _roundWon = true;
-        _score++;
-      } else if (_mistakes >= maxMistakes) {
-        _roundOver = true;
-        _roundWon = false;
-      }
-    });
-
-    if (_roundOver) {
-      Future.delayed(const Duration(milliseconds: 1400), () {
-        if (!mounted) return;
-        if (_currentIndex < _words.length - 1) {
-          setState(() {
-            _currentIndex++;
-            _setupRound();
-          });
-          _speakCurrentHint();
-        } else {
-          setState(() => _isFinished = true);
-          _saveResult();
-        }
-      });
-    }
+  // Toca efeito sem interromper a música de fundo
+  if (isCorrect) {
+    await AudioService().playSuccess();
+  } else {
+    await AudioService().playError();
   }
 
-  Set<String> _unlockedBeforeIds = {};
+  if (!mounted) return;
+
+  setState(() {
+    _guessedLetters.add(letter);
+
+    if (!isCorrect) {
+      _mistakes++;
+    }
+
+    final allRevealed =
+        word.split('').every((c) => _guessedLetters.contains(c));
+
+    if (allRevealed) {
+      _roundOver = true;
+      _roundWon = true;
+      _score++;
+    } else if (_mistakes >= maxMistakes) {
+      _roundOver = true;
+      _roundWon = false;
+    }
+  });
+
+  if (_roundOver) {
+    Future.delayed(const Duration(milliseconds: 1400), () {
+      if (!mounted) return;
+
+      if (_currentIndex < _words.length - 1) {
+        setState(() {
+          _currentIndex++;
+          _setupRound();
+        });
+
+        _speakCurrentHint();
+      } else {
+        setState(() {
+          _isFinished = true;
+        });
+
+        _saveResult();
+      }
+    });
+  }
+}
+
+ Set<String> _unlockedBeforeIds = {};
 
   void _saveResult() {
     final auth = context.read<AuthController>();
