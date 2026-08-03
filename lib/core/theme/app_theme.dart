@@ -28,32 +28,25 @@ class AppTheme {
   static const Color _profLightError = Color(0xFFC62828);
   static const Color _profLightOnSurface = Color(0xFF1F1F1F);
 
-  // Paleta do modo noturno — mesma identidade (azul/ciano), só que clara o
-  // bastante pra ter contraste confortável sobre um fundo escuro.
-  static const Color _profDarkPrimary = Color(0xFF9FA8DA);
-  static const Color _profDarkSecondary = Color(0xFF4FC3F7);
-  static const Color _profDarkAccent = Color(0xFF4DD0E1);
-  static const Color _profDarkBackground = Color(0xFF12141F);
-  static const Color _profDarkSurface = Color(0xFF1C1F2E);
-  static const Color _profDarkSuccess = Color(0xFF66BB6A);
-  static const Color _profDarkWarning = Color(0xFFFFB74D);
-  static const Color _profDarkError = Color(0xFFEF5350);
-  static const Color _profDarkOnSurface = Color(0xFFECEFF7);
+  // Modo noturno do professor: em vez de manter uma paleta escura própria
+  // (duplicada), reaproveita exatamente as cores "galaxy" já usadas no tema
+  // do aluno (declaradas mais abaixo), para que as duas áreas fiquem
+  // visualmente idênticas no escuro.
 
   /// Liga/desliga o modo noturno do professor. Atualiza todas as cores
   /// `AppTheme.profX` de uma vez — quem chamar isso deve, em seguida,
   /// disparar um rebuild do app (o `SettingsController` já faz isso).
   static void applyProfessorDarkMode(bool dark) {
     professorDarkMode = dark;
-    profPrimary = dark ? _profDarkPrimary : _profLightPrimary;
-    profSecondary = dark ? _profDarkSecondary : _profLightSecondary;
-    profAccent = dark ? _profDarkAccent : _profLightAccent;
-    profBackground = dark ? _profDarkBackground : _profLightBackground;
-    profSurface = dark ? _profDarkSurface : _profLightSurface;
-    profSuccess = dark ? _profDarkSuccess : _profLightSuccess;
-    profWarning = dark ? _profDarkWarning : _profLightWarning;
-    profError = dark ? _profDarkError : _profLightError;
-    profOnSurface = dark ? _profDarkOnSurface : _profLightOnSurface;
+    profPrimary = dark ? galaxyPurple : _profLightPrimary;
+    profSecondary = dark ? galaxyCyan : _profLightSecondary;
+    profAccent = dark ? galaxyViolet : _profLightAccent;
+    profBackground = dark ? galaxyDeep : _profLightBackground;
+    profSurface = dark ? galaxyMid : _profLightSurface;
+    profSuccess = dark ? galaxyGreen : _profLightSuccess;
+    profWarning = dark ? galaxyStar : _profLightWarning;
+    profError = dark ? galaxyPink : _profLightError;
+    profOnSurface = dark ? Colors.white : _profLightOnSurface;
   }
 
   // ── Student/Galactic palette ──────────────────────────────────────────────
@@ -67,7 +60,13 @@ class AppTheme {
   static const Color galaxyGreen = Color(0xFF10B981);
 
   static ThemeData professorTheme() {
-    final brightness = professorDarkMode ? Brightness.dark : Brightness.light;
+    // No modo noturno, o professor usa exatamente o mesmo ThemeData do
+    // aluno (mesmos cards, sombras, botões, bordas e textos) — não existe
+    // um segundo tema escuro, só reaproveitamento do tema já existente.
+    if (professorDarkMode) {
+      return studentTheme();
+    }
+    const brightness = Brightness.light;
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -110,7 +109,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: professorDarkMode ? profSurface : const Color(0xFFF0F2F8),
+        fillColor: const Color(0xFFF0F2F8),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -119,7 +118,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: profPrimary, width: 2),
         ),
-        labelStyle: TextStyle(color: professorDarkMode ? profOnSurface.withOpacity(0.7) : const Color(0xFF5C6BC0)),
+        labelStyle: const TextStyle(color: Color(0xFF5C6BC0)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       textTheme: TextTheme(

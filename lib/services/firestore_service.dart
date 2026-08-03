@@ -552,7 +552,8 @@ Future<List<QuizQuestionModel>> fetchQuizQuestions({
 
   return snapshot.docs
       .map(
-        (doc)=> QuizQuestionModel.fromMap(
+        (doc)=> QuizQuestionModel.fromFirestore(
+          doc.id,
           doc.data(),
         ),
       )
@@ -717,7 +718,8 @@ Future<List<WordEntryModel>> fetchWords({
 
   return snapshot.docs
       .map(
-        (doc)=> WordEntryModel.fromMap(
+        (doc)=> WordEntryModel.fromFirestore(
+          doc.id,
           doc.data(),
         ),
       )

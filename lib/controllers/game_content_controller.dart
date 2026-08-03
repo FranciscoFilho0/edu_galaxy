@@ -161,6 +161,15 @@ class GameContentController extends ChangeNotifier {
       return;
     }
 
+    // Sala diferente da carregada: descarta o conteúdo da sala anterior
+    // imediatamente, pra tela não continuar mostrando pergunta/palavra de
+    // outra turma enquanto o conteúdo da sala nova é buscado.
+    if (_loadedForRoomId != null && _loadedForRoomId != roomId) {
+      _quizQuestions = [];
+      _spellingWords = [];
+      _syllableWords = [];
+    }
+
 
 
     _isLoading = true;

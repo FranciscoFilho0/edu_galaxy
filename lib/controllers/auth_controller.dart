@@ -752,6 +752,22 @@ Future<bool> registerProfessor(
     }
   }
 
+  // ============================================================
+  // SELECIONAR SALA (PROFESSOR)
+  // ============================================================
+
+  /// Guarda qual sala o professor escolheu, tanto na memória (pra uso
+  /// imediato) quanto no SharedPreferences (pra restaurar depois que o app
+  /// for fechado e reaberto). Sem isso, `tryAutoLogin` nunca tinha um
+  /// roomId salvo pra restaurar.
+  Future<void> selectProfessorRoom(RoomModel room) async {
+    _currentRoom = room;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kProfessorRoomKey, room.id);
+  }
+
   // ── Redefinir senha ──────────────────────────────────────────────────────
   Future<bool> sendPasswordReset(String email) async {
     _isLoading = true;

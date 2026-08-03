@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
+import '../../controllers/current_room_controller.dart';
 import '../../core/router/app_routes.dart';
 
 /// Primeira tela que abre quando o app inicia.
@@ -34,6 +35,15 @@ class _SplashViewState extends State<SplashView> {
     if (!mounted) return;
 
     if (auth.isProfessor) {
+      // Sincroniza a sala restaurada (lida do SharedPreferences dentro de
+      // tryAutoLogin) com o CurrentRoomController, que é o que o Dashboard
+      // realmente consulta pra saber qual sala carregar. Sem isso, o
+      // Dashboard não sabia qual era a última sala selecionada logo após
+      // reabrir o app.
+      final restoredRoom = auth.currentRoom;
+      if (restoredRoom != null) {
+        context.read<CurrentRoomController>().selectRoom(restoredRoom);
+      }
       context.go(AppRoutes.professorDashboard);
     } else if (auth.currentStudent != null) {
       context.go(AppRoutes.studentHome);

@@ -56,7 +56,7 @@ class WordListEditorView extends StatelessWidget {
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.profSurface,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: AppTheme.profPrimary.withOpacity(0.2)),
             ),

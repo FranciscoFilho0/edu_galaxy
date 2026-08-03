@@ -56,7 +56,7 @@ class ProfessorGamesView extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Ative ou desative jogos para controlar quais seus alunos podem acessar.',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: 13, color: AppTheme.profOnSurface.withOpacity(0.75)),
                   ),
                 ),
               ],
@@ -68,7 +68,7 @@ class ProfessorGamesView extends StatelessWidget {
               children: [
                 _StatusBadge(label: '$activeCount ativos', color: AppTheme.profSuccess),
                 const SizedBox(width: 8),
-                _StatusBadge(label: '${prof.games.length - activeCount} inativos', color: Colors.grey),
+                _StatusBadge(label: '${prof.games.length - activeCount} inativos', color: AppTheme.profOnSurface.withOpacity(0.5)),
               ],
             ),
           ),
@@ -147,7 +147,7 @@ class _GameToggleCard extends StatelessWidget {
                       children: [
                         Text(game.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                         const SizedBox(height: 3),
-                        Text(game.subject, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                        Text(game.subject, style: TextStyle(color: AppTheme.profOnSurface.withOpacity(0.65), fontSize: 13)),
                         const SizedBox(height: 4),
                         Row(
                           children: [

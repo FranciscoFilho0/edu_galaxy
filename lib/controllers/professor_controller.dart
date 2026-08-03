@@ -32,6 +32,17 @@ class ProfessorController extends ChangeNotifier {
   /// nenhuma sala selecionada — ex.: sessão restaurada direto na splash.
   Future<void> loadData(String professorId, {String professorName = 'Professor', String? roomId}) async {
     if (professorId.isEmpty) return;
+
+    // Se a sala pedida for diferente da que já está carregada, descarta os
+    // dados da sala anterior imediatamente, pra tela não continuar mostrando
+    // aluno/resultado/jogo de outra turma enquanto a nova sala é buscada.
+    if (roomId != null && _room != null && _room!.id != roomId) {
+      _room = null;
+      _students = [];
+      _results = [];
+      _games = GameModel.allGames;
+    }
+
     _isLoading = true;
     notifyListeners();
 
