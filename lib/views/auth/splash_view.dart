@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/current_room_controller.dart';
 import '../../core/router/app_routes.dart';
+import '../shared/loading_widgets.dart';
 
 /// Primeira tela que abre quando o app inicia.
 ///
@@ -54,26 +55,8 @@ class _SplashViewState extends State<SplashView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0D1B6E), Color(0xFF1A237E), Color(0xFF0A0E27)],
-          ),
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.rocket_launch, color: Colors.white, size: 56),
-              SizedBox(height: 20),
-              CircularProgressIndicator(color: Color(0xFF7C3AED)),
-            ],
-          ),
-        ),
-      ),
+    return const Scaffold(
+      body: AppLoadingSplash(),
     );
   }
 }

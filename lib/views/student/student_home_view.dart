@@ -8,6 +8,7 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/achievement_model.dart';
 import 'widgets/achievement_badge.dart';
+import '../shared/loading_widgets.dart';
 
 class StudentHomeView extends StatefulWidget {
   const StudentHomeView({super.key});
@@ -49,9 +50,10 @@ class _StudentHomeViewState extends State<StudentHomeView> {
         children: [
           const Positioned.fill(child: _GalaxyBackground()),
           SafeArea(
-            child: ctrl.isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppTheme.galaxyViolet))
-                : CustomScrollView(
+            child: LoadingGate(
+              isLoading: ctrl.isLoading,
+              message: 'Preparando sua base...',
+              child: CustomScrollView(
                     slivers: [
                       // Header
                       SliverToBoxAdapter(
@@ -209,6 +211,7 @@ class _StudentHomeViewState extends State<StudentHomeView> {
                       const SliverToBoxAdapter(child: SizedBox(height: 20)),
                     ],
                   ),
+            ),
           ),
         ],
       ),

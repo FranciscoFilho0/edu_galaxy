@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/router/app_routes.dart';
+import '../shared/loading_widgets.dart';
 
 class StudentRoomEntryView extends StatefulWidget {
   const StudentRoomEntryView({super.key});
@@ -28,7 +29,10 @@ Widget build(BuildContext context) {
   return Scaffold(
     // Adicione esta linha para evitar que o teclado tente redimensionar o Scaffold
     resizeToAvoidBottomInset: true, 
-    body: Stack(
+    body: LoadingOverlayStack(
+      isLoading: auth.isLoading,
+      message: 'Entrando na turma...',
+      child: Stack(
       children: [
         Container(
           decoration: const BoxDecoration(
@@ -150,6 +154,7 @@ Widget build(BuildContext context) {
           ),
         ),
       ],
+    ),
     ),
   );
 }

@@ -8,6 +8,7 @@ import '../../controllers/current_room_controller.dart';
 import '../../controllers/game_content_controller.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_theme.dart';
+import '../shared/loading_widgets.dart';
 
 class ProfessorDashboardView extends StatefulWidget {
   const ProfessorDashboardView({super.key});
@@ -114,9 +115,10 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
           ),
         ],
       ),
-      body: prof.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
+      body: LoadingGate(
+        isLoading: prof.isLoading,
+        message: 'Carregando dados da turma...',
+        child: RefreshIndicator(
               onRefresh: () => prof.loadData(
                 auth.currentUser?.id ?? '',
                 professorName: auth.currentUser?.name ?? 'Professor',
@@ -204,6 +206,7 @@ class _ProfessorDashboardViewState extends State<ProfessorDashboardView> {
                 ),
               ),
             ),
+      ),
     );
   }
 }

@@ -5,6 +5,7 @@ import '../../controllers/auth_controller.dart';
 import '../../core/router/app_routes.dart';
 import 'widgets/auth_shared_widgets.dart';
 import '../professor/select_room_view.dart';
+import '../shared/loading_widgets.dart';
 
 /// Tela de login/cadastro exclusiva do professor.
 ///
@@ -27,6 +28,9 @@ class _ProfessorLoginViewState extends State<ProfessorLoginView> {
   final _confirmCtrl = TextEditingController();
   bool _obscure = true;
   bool _obscureConfirm = true;
+  // Controla a splash de carregamento exibida assim que o professor toca em
+  // "Entrar"/"Criar conta"/Google, até a navegação para a seleção de sala.
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -42,13 +46,16 @@ class _ProfessorLoginViewState extends State<ProfessorLoginView> {
     final auth = context.watch<AuthController>();
 
     return Scaffold(
-      body: Stack(
-        children: [
-          const AuthBackground(),
-          SafeArea(
-            child: Column(
-              children: [
-                _TopBar(onBack: () => context.go(AppRoutes.login)),
+      body: LoadingOverlayStack(
+        isLoading: _submitting,
+        message: 'Entrando...',
+        child: Stack(
+          children: [
+            const AuthBackground(),
+            SafeArea(
+              child: Column(
+                children: [
+                  _TopBar(onBack: () => context.go(AppRoutes.login)),
                 const SizedBox(height: 12),
                 const AuthLogo(subtitle: 'Portal do Professor'),
                 const SizedBox(height: 28),
@@ -153,8 +160,14 @@ class _ProfessorLoginViewState extends State<ProfessorLoginView> {
                           isLoading: auth.isLoading,
                           onTap: () async {
                             if (_mode == 0) {
+                              setState(() => _submitting = true);
                               final ok = await auth.loginProfessor(_emailCtrl.text, _passwordCtrl.text);
-                              if (ok && context.mounted) context.go(AppRoutes.selectRoom);
+                              if (!context.mounted) return;
+                              if (ok) {
+                                context.go(AppRoutes.selectRoom);
+                              } else {
+                                setState(() => _submitting = false);
+                              }
                             } else {
                               if (_passwordCtrl.text != _confirmCtrl.text) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -162,10 +175,14 @@ class _ProfessorLoginViewState extends State<ProfessorLoginView> {
                                 );
                                 return;
                               }
+                              setState(() => _submitting = true);
                               final ok = await auth.registerProfessor(_nameCtrl.text, _emailCtrl.text, _passwordCtrl.text);
-                              if (ok && context.mounted) {
-  context.go(AppRoutes.selectRoom);
-}
+                              if (!context.mounted) return;
+                              if (ok) {
+                                context.go(AppRoutes.selectRoom);
+                              } else {
+                                setState(() => _submitting = false);
+                              }
                             }
                           },
                         ),
@@ -188,8 +205,14 @@ class _ProfessorLoginViewState extends State<ProfessorLoginView> {
                         GoogleButton(
                           isLoading: auth.isLoading,
                           onTap: () async {
+                            setState(() => _submitting = true);
                             final ok = await auth.loginWithGoogle();
-                            if (ok && context.mounted) context.go(AppRoutes.selectRoom);
+                            if (!context.mounted) return;
+                            if (ok) {
+                              context.go(AppRoutes.selectRoom);
+                            } else {
+                              setState(() => _submitting = false);
+                            }
                           },
                         ),
 
@@ -201,8 +224,9 @@ class _ProfessorLoginViewState extends State<ProfessorLoginView> {
               ],
             ),
           ),
-        ],
-      ),
+            ],
+          ),
+        ),
     );
   }
 

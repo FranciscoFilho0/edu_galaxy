@@ -9,6 +9,7 @@ import '../../controllers/professor_controller.dart';
 import '../../controllers/game_content_controller.dart';
 import '../../core/router/app_routes.dart';
 import 'package:go_router/go_router.dart';
+import '../shared/loading_widgets.dart';
 
 class SelectRoomView extends StatefulWidget {
   const SelectRoomView({super.key});
@@ -29,6 +30,10 @@ class _SelectRoomViewState extends State<SelectRoomView> {
   // entre rebuilds, a lista de salas não é mais recriada à toa e o botão
   // "Entrar" permanece montado até terminar de carregar os dados e navegar.
   late final Stream<List<RoomModel>> _roomsStream;
+
+  // Controla a splash de carregamento exibida assim que o professor toca em
+  // "Entrar" num card de sala, até o Dashboard estar pronto para abrir.
+  bool _entering = false;
 
   @override
   void initState() {
@@ -91,33 +96,47 @@ class _SelectRoomViewState extends State<SelectRoomView> {
     final professor = auth.currentUser;
     final professorId = professor?.id ?? '';
 
-    // Carrega os dados da sala escolhida antes de navegar, sem depender do
-    // initState da Dashboard — que pode não rodar de novo se o GoRouter
-    // reaproveitar a página já existente da shell.
-    await context.read<ProfessorController>().loadData(
-          professorId,
-          professorName: professor?.name ?? 'Professor',
-          roomId: room.id,
-        );
+    // Exibe a splash de carregamento imediatamente ao tocar em "Entrar" (ou
+    // ao trocar de sala) e só some quando a navegação para o Dashboard
+    // acontecer — cobrindo, entre outras coisas, o tempo pequeno que existia
+    // entre esse toque e o Dashboard aparecer pronto.
+    setState(() => _entering = true);
 
-    if (!context.mounted) return;
+    try {
+      // Carrega os dados da sala escolhida antes de navegar, sem depender do
+      // initState da Dashboard — que pode não rodar de novo se o GoRouter
+      // reaproveitar a página já existente da shell.
+      await context.read<ProfessorController>().loadData(
+            professorId,
+            professorName: professor?.name ?? 'Professor',
+            roomId: room.id,
+          );
 
-    await context
-        .read<GameContentController>()
-        .loadContent(room.id, professorId: professorId);
+      if (!context.mounted) return;
 
-    if (!context.mounted) return;
+      await context
+          .read<GameContentController>()
+          .loadContent(room.id, professorId: professorId);
 
-    // Só marca a sala como selecionada (memória + persistência) depois que
-    // os dados já estão carregados, e navega em seguida — assim nenhum
-    // notifyListeners() no meio do caminho derruba o Card/botão que
-    // disparou essa ação antes que a navegação aconteça.
-    await auth.selectProfessorRoom(room);
-    if (!context.mounted) return;
+      if (!context.mounted) return;
 
-    context.read<CurrentRoomController>().selectRoom(room);
+      // Só marca a sala como selecionada (memória + persistência) depois que
+      // os dados já estão carregados, e navega em seguida — assim nenhum
+      // notifyListeners() no meio do caminho derruba o Card/botão que
+      // disparou essa ação antes que a navegação aconteça.
+      await auth.selectProfessorRoom(room);
+      if (!context.mounted) return;
 
-    context.go(AppRoutes.professorDashboard);
+      context.read<CurrentRoomController>().selectRoom(room);
+
+      context.go(AppRoutes.professorDashboard);
+    } catch (e) {
+      if (!context.mounted) return;
+      setState(() => _entering = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao entrar na sala: $e')),
+      );
+    }
   }
 
   @override
@@ -141,7 +160,10 @@ class _SelectRoomViewState extends State<SelectRoomView> {
       appBar: AppBar(
         title: const Text('Selecionar Sala'),
       ),
-      body: Column(
+      body: LoadingOverlayStack(
+        isLoading: _entering,
+        message: 'Carregando sala...',
+        child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(20),
@@ -237,6 +259,7 @@ class _SelectRoomViewState extends State<SelectRoomView> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

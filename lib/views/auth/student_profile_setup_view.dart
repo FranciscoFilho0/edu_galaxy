@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/router/app_routes.dart';
+import '../shared/loading_widgets.dart';
 
 class StudentProfileSetupView extends StatefulWidget {
   const StudentProfileSetupView({super.key});
@@ -37,7 +38,10 @@ class _StudentProfileSetupViewState extends State<StudentProfileSetupView> {
     final roomCode = auth.pendingRoomCode ?? '';
 
     return Scaffold(
-      body: Container(
+      body: LoadingOverlayStack(
+        isLoading: _saving,
+        message: 'Entrando na turma...',
+        child: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -192,6 +196,7 @@ class _StudentProfileSetupViewState extends State<StudentProfileSetupView> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
